@@ -9,7 +9,8 @@ import subprocess
 import tempfile
 import openpyxl
 import urllib.parse
-import pythoncom
+try:
+    import pythoncom
 except ImportError:
     pythoncom = None
 
