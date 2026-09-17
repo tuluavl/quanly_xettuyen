@@ -55,7 +55,7 @@ class CustomUser(models.Model):
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True, db_column='role_id')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    email = models.EmailField(max_length=255, unique=True, null=True, blank=True)
+    email = models.EmailField(max_length=255, null=True, blank=True)
     class Meta:
         db_table = 'users'
 
@@ -118,7 +118,7 @@ class KetQuaLocAo(models.Model):
 
     class Meta:
         db_table = 'ket_qua_loc_ao'
-        managed = False
+        managed = True
 
 
 class DanhMucNganh(models.Model):
@@ -253,7 +253,7 @@ class ThiSinhData(models.Model):
     diem_thi_TT = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'thi_sinh_data'
 
 
@@ -350,7 +350,7 @@ class MauImportGiayBao(models.Model):
 
     class Meta:
         db_table = 'mau_import_giay_bao'
-        managed = False
+        managed = True
 
     def __str__(self):
         return f"{self.ho_ten} - {self.cccd}"
