@@ -43,7 +43,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from .models import CustomUser, Role, RolePermission, Permission, ThiSinhData, KetQuaLocAo, TruongTHPT, DiemThiVsat, MauImportGiayBao, CapNhatThongTinTrungTuyen, CauHinhGiayBao, AuditLog, UserProfile
+from .models import CustomUser, Role, RolePermission, Permission, ThiSinhData, KetQuaLocAo, ToHopMon, TruongTHPT, DiemThiVsat, MauImportGiayBao, CapNhatThongTinTrungTuyen, CauHinhGiayBao, AuditLog, UserProfile
 from .decorators import custom_login_required, check_permission
 from django.contrib.auth.decorators import login_required
 
@@ -401,7 +401,7 @@ def import_thi_sinh(request):
                 with transaction.atomic():
                     with connection.cursor() as cursor:
                         # Xóa sạch toàn bộ dữ liệu bảng cũ
-                        cursor.execute("TRUNCATE TABLE `thi_sinh_data`")
+                        ThiSinhData.objects.all().delete()
                         
                         # Chèn dữ liệu mới qua Parametric Query (%s) an toàn
                         cursor.executemany(sql_insert, values)
@@ -1475,7 +1475,7 @@ def diem_chuan(request):
 
                 # BƯỚC 4: Chèn dữ liệu hàng loạt vào mau_import_giay_bao (Gồm trường dien_thoai)
                 with connection.cursor() as cursor:
-                    cursor.execute("TRUNCATE TABLE `mau_import_giay_bao`;")
+                    MauImportGiayBao.objects.all().delete()
                     if records_to_insert:
                         sql_insert = """
                             INSERT INTO mau_import_giay_bao (
@@ -3661,7 +3661,7 @@ def danh_sach_truong_thpt(request):
         try:
             df = pd.read_excel(file_excel, dtype=str).fillna('')
             with connection.cursor() as cursor:
-                cursor.execute("TRUNCATE TABLE `truong_thpt`;")
+                TruongTHPT.objects.all().delete()
 
             danh_sach_moi = []
             for _, row in df.iterrows():
