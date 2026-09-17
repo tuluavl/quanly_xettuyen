@@ -1,0 +1,407 @@
+{% extends 'xettuyen/base.html' %}
+
+{% block page_icon %}fa-solid fa-users-gear{% endblock %}
+{% block page_title %}Quản lý tài khoản & Phân quyền{% endblock %}
+{% block page_subtitle %}Cấu hình danh sách người dùng, tạo quyền và cập nhật quyền hệ thống{% endblock %}
+{% block breadcrumb %}Quản Lý Tài Khoản{% endblock %}
+
+{% block content %}
+<style>
+    .badge-perm {
+        font-weight: 500;
+        font-size: 11px;
+        padding: 4px 8px;
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+    }
+    .badge-role-admin { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-role-user { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+    
+    .col-action { min-width: 250px; }
+    .perm-container { max-width: 420px; white-space: normal; }
+    
+    .perm-card-item {
+        transition: all 0.15s ease-in-out;
+        border: 1px solid #e2e8f0;
+        background-color: #ffffff;
+    }
+    .perm-card-item:hover {
+        background-color: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    /* CSS Sửa lỗi tràn Tab Sidebar */
+    .tab-sidebar {
+        width: 280px;
+        flex-shrink: 0;
+    }
+    .tab-sidebar .nav-link {
+        color: #334155;
+        font-weight: 500;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+    .tab-sidebar .nav-link.active {
+        background-color: #0d6efd;
+        color: #fff;
+    }
+    .tab-sidebar .nav-link.active .badge {
+        background-color: #fff !important;
+        color: #0d6efd !important;
+    }
+</style>
+
+<div class="card-box shadow-sm border-0">
+    <!-- Thanh thao tác đầu trang -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <div>
+            <h5 class="fw-bold text-dark m-0">DANH SÁCH TÀI KHOẢN & PHÂN QUYỀN</h5>
+            <small class="text-muted">Quản lý vai trò và phân quyền truy cập chức năng hệ thống</small>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Nút Quản lý nhóm quyền -->
+            <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalManageGroups">
+                <i class="fa-solid fa-folder-tree me-1"></i> Quản lý Nhóm Quyền
+            </button>
+            <!-- Nút Tạo quyền mới -->
+            <button type="button" class="btn btn-success btn-sm fw-bold px-3 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCreatePermission">
+                <i class="fa-solid fa-plus-circle me-1"></i> Tạo Quyền Mới
+            </button>
+        </div>
+    </div>
+
+    <!-- Bảng danh sách người dùng -->
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered dataTable align-middle w-100">
+            <thead class="table-light text-uppercase fs-7">
+                <tr>
+                    <th style="width: 50px;" class="text-center">STT</th>
+                    <th>Tên đăng nhập</th>
+                    <th>Họ và tên</th>
+                    <th>Vai trò</th>
+                    <th>Quyền hạn được cấp</th>
+                    <th class="text-center col-action">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td class="text-center fw-bold text-secondary">{{ forloop.counter }}</td>
+                        <td class="fw-bold text-primary">{{ u.username }}</td>
+                        <td>{{ u.full_name }}</td>
+                        <td>
+                            {% if u.role.code == 'admin' %}
+                                <span class="badge badge-role-admin rounded-pill px-2 py-1"><i class="fa-solid fa-shield-cat me-1"></i>{{ u.role.name }}</span>
+                            {% else %}
+                                <span class="badge badge-role-user rounded-pill px-2 py-1">{{ u.role.name|default:"Chưa gán" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="perm-container d-flex flex-wrap gap-1 align-items-center">
+                                {% if u.role and u.role.code == 'admin' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold rounded-pill px-2 py-1">
+                                        <i class="fa-solid fa-crown me-1"></i> Toàn quyền hệ thống
+                                    </span>
+                                {% elif u.role and u.role.permissions.all %}
+                                    {% for perm in u.role.permissions.all|slice:":3" %}
+                                        <span class="badge badge-perm rounded">{{ perm.code }}</span>
+                                    {% endfor %}
+
+                                    {% if u.role.permissions.count > 3 %}
+                                        <span class="badge bg-secondary text-white rounded cursor-pointer" 
+                                              data-bs-toggle="tooltip" 
+                                              data-bs-html="true"
+                                              data-bs-placement="top" 
+                                              title="<b>Danh sách quyền đầy đủ:</b><br>{% for p in u.role.permissions.all %}- {{ p.name }} (<code>{{ p.code }}</code>)<br>{% endfor %}">
+                                            +{{ u.role.permissions.count|add:"-3" }} quyền khác...
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small fst-italic">Chưa được cấp quyền</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <!-- Form cập nhật Vai trò -->
+                                <form method="POST" action="{% url 'manage_users' %}" class="d-flex gap-1 align-items-center m-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_role">
+                                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                                    
+                                    <select name="role_id" class="form-select form-select-sm" style="font-size: 12px; width: 130px;">
+                                        {% for r in roles %}
+                                            <option value="{{ r.id }}" {% if r.id == u.role_id %}selected{% endif %}>
+                                                {{ r.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Lưu Vai Trò">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                    </button>
+                                </form>
+
+                                <!-- Nút Sửa Quyền -->
+                                {% if u.role %}
+                                <button type="button" class="btn btn-sm btn-warning text-dark fw-semibold d-flex align-items-center gap-1" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#modalEditRolePerms{{ u.role.id }}" 
+                                        style="font-size: 12px;">
+                                    <i class="fa-solid fa-user-gear"></i> Sửa Quyền
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Chưa có tài khoản nào trong hệ thống</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Phân Quyền Dạng Tab Chức Năng -->
+{% for r in roles %}
+<div class="modal fade text-start" id="modalEditRolePerms{{ r.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_permissions">
+                <input type="hidden" name="role_id" value="{{ r.id }}">
+
+                <div class="modal-header bg-warning text-dark py-2">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Cấu hình quyền cho Vai trò: <span class="text-decoration-underline">{{ r.name }}</span>
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <span class="small text-muted">Chọn nhóm chức năng bên dưới để phân quyền:</span>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary btn-xs" onclick="toggleAllPerms('modalEditRolePerms{{ r.id }}', true)">Chọn tất cả</button>
+                            <button type="button" class="btn btn-outline-secondary btn-xs" onclick="toggleAllPerms('modalEditRolePerms{{ r.id }}', false)">Bỏ chọn</button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-3">
+                        <!-- Sidebar Tab Cố định Kích thước -->
+                        <div class="tab-sidebar border-end pe-2">
+                            <div class="nav flex-column nav-pills" id="v-pills-tab-{{ r.id }}" role="tablist">
+                                {% for group_name, perms in grouped_permissions.items %}
+                                    {% if perms %}
+                                        <button class="nav-link text-start mb-1 d-flex justify-content-between align-items-center {% if forloop.first %}active{% endif %}" 
+                                                id="tab-btn-{{ r.id }}-{{ forloop.counter }}" 
+                                                data-bs-toggle="pill" 
+                                                data-bs-target="#tab-content-{{ r.id }}-{{ forloop.counter }}" 
+                                                type="button" role="tab">
+                                            <span class="text-truncate me-2" title="{{ group_name }}">
+                                                <i class="fa-solid fa-folder me-1 text-secondary"></i> {{ group_name }}
+                                            </span>
+                                            <span class="badge bg-secondary rounded-pill fs-9">{{ perms|length }}</span>
+                                        </button>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Content Tab Có Thanh Cuộn -->
+                        <div class="flex-grow-1">
+                            <div class="tab-content" id="v-pills-tabContent-{{ r.id }}" style="max-height: 480px; overflow-y: auto; padding-right: 5px;">
+                                {% for group_name, perms in grouped_permissions.items %}
+                                    {% if perms %}
+                                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                             id="tab-content-{{ r.id }}-{{ forloop.counter }}" 
+                                             role="tabpanel">
+                                            
+                                            <div class="fw-bold text-primary mb-3 pb-2 border-bottom fs-7">
+                                                <i class="fa-solid fa-list-check me-1"></i> {{ group_name }}
+                                            </div>
+
+                                            <div class="row g-2">
+                                                {% for perm in perms %}
+                                                    <div class="col-md-6">
+                                                        <div class="perm-card-item rounded p-2 ps-3 border">
+                                                            <div class="form-check m-0">
+                                                                <input class="form-check-input perm-checkbox" type="checkbox" name="permissions" value="{{ perm.id }}" id="perm_{{ r.id }}_{{ perm.id }}"
+                                                                    {% if perm in r.permissions.all %}checked{% endif %}>
+                                                                <label class="form-check-label d-block text-dark cursor-pointer" for="perm_{{ r.id }}_{{ perm.id }}" style="font-size: 13px;">
+                                                                    <span class="fw-semibold">{{ perm.name }}</span>
+                                                                    <span class="d-block text-muted" style="font-size: 11px;">Mã: <code>{{ perm.code }}</code></span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Thoát</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fa-solid fa-check me-1"></i> Lưu thiết lập quyền
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Tạo Quyền Mới -->
+<div class="modal fade" id="modalCreatePermission" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_permission">
+
+                <div class="modal-header bg-success text-white">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-key me-1"></i> Tạo Quyền Truy Cập Mới
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Thuộc Nhóm Chức Năng (Group) <span class="text-danger">*</span></label>
+                        <select name="perm_group" class="form-select form-select-sm" required>
+                            {% for key, label in group_choices %}
+                                <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Tên quyền hiển thị <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_name" class="form-control form-control-sm" placeholder="VD: Import danh sách Tổ hợp môn" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Mã hệ thống (Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_code" class="form-control form-control-sm" placeholder="VD: import_to_hop_mon" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-success px-3">
+                        <i class="fa-solid fa-plus me-1"></i> Tạo quyền
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Quản Lý Nhóm Quyền (Cập nhật & Chuyển nhóm cho các quyền hiện tại) -->
+<div class="modal fade" id="modalManageGroups" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h6 class="modal-title fw-bold">
+                    <i class="fa-solid fa-folder-tree me-1"></i> Quản Lý & Chuyển Nhóm Cho Quyền
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <!-- Form Đổi Nhóm Hàng Loạt -->
+                <form method="POST" action="{% url 'manage_users' %}" class="mb-4 p-3 bg-light rounded border">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="bulk_update_group">
+                    <label class="fw-bold fs-7 mb-2 text-primary"><i class="fa-solid fa-layer-group me-1"></i> Chuyển nhóm hàng loạt</label>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-7">
+                            <select name="target_group" class="form-select form-select-sm" required>
+                                <option value="">-- Chọn Nhóm Đích --</option>
+                                {% for key, label in group_choices %}
+                                    <option value="{{ key }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold">
+                                <i class="fa-solid fa-right-left me-1"></i> Cập nhật các quyền đã chọn
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bảng Danh sách tất cả Quyền -->
+                    <div class="table-responsive mt-3" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle border">
+                            <thead class="table-secondary sticky-top">
+                                <tr>
+                                    <th style="width: 30px;" class="text-center">
+                                        <input type="checkbox" class="form-check-input" id="checkAllBulk" onclick="toggleBulkSelect(this)">
+                                    </th>
+                                    <th>Tên quyền</th>
+                                    <th>Mã Code</th>
+                                    <th>Nhóm hiện tại</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in all_permissions %}
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="perm_ids" value="{{ p.id }}" class="form-check-input bulk-perm-cb">
+                                    </td>
+                                    <td class="fw-semibold fs-7">{{ p.name }}</td>
+                                    <td><code>{{ p.code }}</code></td>
+                                    <td><span class="badge bg-info-subtle text-info border border-info-subtle">{{ p.get_group_display|default:p.group }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">Chưa có quyền nào trong hệ thống</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+
+    function toggleAllPerms(modalId, checkState) {
+        var modalEl = document.getElementById(modalId);
+        if (modalEl) {
+            var checkboxes = modalEl.querySelectorAll('.perm-checkbox');
+            checkboxes.forEach(function(cb) {
+                cb.checked = checkState;
+            });
+        }
+    }
+
+    function toggleBulkSelect(source) {
+        var checkboxes = document.querySelectorAll('.bulk-perm-cb');
+        checkboxes.forEach(function(cb) {
+            cb.checked = source.checked;
+        });
+    }
+</script>
+{% endblock %}

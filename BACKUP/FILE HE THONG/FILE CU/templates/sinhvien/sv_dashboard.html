@@ -1,0 +1,219 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết quả xét tuyển - UEH Khóa 52</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Nhúng file CSS đã tách -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+
+<div class="main-wrapper">
+    <!-- HEADER UEH BANNER -->
+    <div class="ueh-header">
+        <a href="{% url 'sinh_vien_logout' %}" class="btn-logout">
+            <i class="fa-solid fa-right-from-bracket me-1"></i> Đăng xuất
+        </a>
+
+        <div class="ueh-logo">
+            <img src="https://ueh.edu.vn/images/logo_ueh.png" alt="Logo UEH">
+        </div>
+
+        <h6>BỘ GIÁO DỤC VÀ ĐÀO TẠO</h6>
+        <h6>ĐẠI HỌC KINH TẾ THÀNH PHỐ HỒ CHÍ MINH</h6>
+        <h3>KẾT QUẢ XÉT TUYỂN BỔ SUNG ĐẠI HỌC CHÍNH QUY<br>KHÓA 52 NĂM 2026</h3>
+        <div class="location-badge">
+            <i class="fa-solid fa-location-dot me-1"></i> Đào tạo tại Vĩnh Long - UEH Mekong <span class="badge-ksv">KSV</span>
+        </div>
+    </div>
+
+    <!-- CÁC PHƯƠNG THỨC XÉT TUYỂN -->
+    <div class="section-box">
+        <div class="section-header-teal">
+            <i class="fa-solid fa-list-ul me-2"></i>Các phương thức xét tuyển
+        </div>
+        <div class="p-3">
+            <ul class="mb-0 ps-3 small font-weight-bold">
+                <li class="mb-1">Phương thức xét tuyển tích hợp</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- THÔNG TIN CÁ NHÂN VÀ KẾT QUẢ XÉT TUYỂN -->
+    <div class="section-box p-4" style="background-color: #fafbfc;">
+        <div class="section-title-bold">
+            <i class="fa-solid fa-user"></i> THÔNG TIN CÁ NHÂN VÀ KẾT QUẢ XÉT TUYỂN
+        </div>
+
+        <div class="info-row"><div class="info-label">CCCD:</div><div class="info-value">{{ ts.cccd }}</div></div>
+        <div class="info-row"><div class="info-label">Họ và tên:</div><div class="info-value highlight">{{ ts.ho_ten }}</div></div>
+        <div class="info-row"><div class="info-label">Ngày sinh:</div><div class="info-value">{{ ts.ngay_sinh }}</div></div>
+        <div class="info-row"><div class="info-label">Giới tính:</div><div class="info-value">{{ gioi_tinh }}</div></div>
+        <div class="info-row"><div class="info-label">Mã CTĐT trúng tuyển:</div><div class="info-value">{{ ma_nganh }}</div></div>
+        <div class="info-row"><div class="info-label">Tên CTĐT trúng tuyển:</div><div class="info-value highlight">{{ ten_nganh }}</div></div>
+        <div class="info-row"><div class="info-label">Phương thức trúng tuyển:</div><div class="info-value">{{ ts.phuong_thuc_xet }}</div></div>
+        <div class="info-row"><div class="info-label">Nguyện vọng trúng tuyển:</div><div class="info-value">{{ nv_trung_tuyen }}</div></div>
+        
+        <div class="info-row">
+            <div class="info-label">Hướng dẫn nhập học:</div>
+            <div class="info-value"><a href="https://tuyensinh.ueh.edu.vn/bai-viet/huong-dan-thu-tuc-nhap-hoc-khoa-52-dai-hoc-chinh-quy-nam-2026/" class="link-click">Click để xem</a></div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Cách tính điểm:</div>
+            <div class="info-value"><a href="https://tuyensinh.ueh.edu.vn/bai-viet/huong-dan-quy-doi-diem-giua-cac-ky-thi-trong-phuong-thuc-xet-tuyen-tich-hop-khoa-52-dai-hoc-chinh-quy-ueh-2026/" class="link-click">Click để xem</a></div>
+        </div>
+
+        <!-- LINK GIẤY BÁO BẢO MẬT -->
+        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <strong class="text-success"><i class="fa-solid fa-circle-check me-1"></i> Trạng thái giấy báo:</strong>
+                <span class="text-muted small ms-1">Đã sẵn sàng tải bản chính thức</span>
+            </div>
+            <a href="{% url 'in_giay_bao_bao_mat' %}?preview=1" target="_blank" class="btn btn-danger fw-bold px-3 py-2 rounded-3">
+				<i class="fa-solid fa-file-pdf me-2"></i>Xem / Tải giấy báo trúng tuyển (file PDF)
+			</a>
+        </div>
+    </div>
+
+    <!-- KẾT QUẢ XÉT TUYỂN THEO TỪNG NGUYỆN VỌNG -->
+    <div class="nv-section-container">
+        <div class="section-main-heading">Kết quả xét tuyển theo từng nguyện vọng</div>
+        <div class="orange-line-divider"></div>
+        <div class="section-subtext">
+            Năm 2026, UEH sẽ quy đổi điểm thi tương đương giữa các kỳ thi (THPT, ĐGNL, V-SAT) chọn điểm xét tuyển có lợi nhất cho thí sinh.<br>
+            Điểm xét tuyển (thang 100) = Điểm thi quy đổi × 60% + Điểm TB các năm học THPT quy đổi × 40% + Điểm cộng + Điểm ưu tiên ĐT/KV.
+        </div>
+
+        <div class="nv-card-outer">
+            {% if ma_nganh != "—" %}
+                <span class="badge-code-pill">{{ ma_nganh }}</span>
+            {% endif %}
+            
+            <div class="program-title">{{ ten_nganh }}</div>
+            
+            <div class="program-meta">
+                Nguồn điểm xét tuyển: <strong>{{ ts.ptxt|default:"Kết quả thi tốt nghiệp THPT năm 2026" }}</strong><br>
+                {% if thm_display %}
+                    Tổ hợp môn (THM): {{ thm_display }}<br>
+                {% else %}
+                    Tổ hợp môn (THM): D01 (Toán, Ngữ văn, Tiếng Anh)<br>
+                {% endif %}
+                Thứ tự nguyện vọng: {{ nv_trung_tuyen }}
+            </div>
+
+            <div class="row g-3">
+                <!-- CỘT 1: ĐIỂM THI GỐC -->
+                <div class="col-lg-4 col-md-12">
+                    <div class="score-card-col">
+                        <div class="card-header-title">
+                            <i class="fa-solid fa-graduation-cap fs-5"></i> 
+                            {% if is_dgnl %}
+                                Điểm thi ĐGNL năm 2026
+                            {% elif is_vsat %}
+                                Điểm thi V-SAT năm 2026
+                            {% else %}
+                                Điểm thi tốt nghiệp THPT năm 2026
+                            {% endif %}
+                        </div>
+
+                        {% if not is_dgnl %}
+                            <div class="score-pill-item">
+                                <span class="pill-label">Điểm môn Toán:</span>
+                                <span class="pill-val">{{ m1 }}</span>
+                            </div>
+                            <div class="score-pill-item">
+                                <span class="pill-label">Điểm môn Ngữ văn:</span>
+                                <span class="pill-val">{{ m2 }}</span>
+                            </div>
+                            <div class="score-pill-item">
+                                <span class="pill-label">Điểm môn Tiếng Anh:</span>
+                                <span class="pill-val">{{ m3 }}</span>
+                            </div>
+                        {% else %}
+                            <div class="score-pill-item">
+                                <span class="pill-label">Điểm ĐGNL gốc:</span>
+                                <span class="pill-val">{{ diem_dgnl_goc }}</span>
+                            </div>
+                        {% endif %}
+
+                        <div class="score-pill-item pill-orange-left">
+                            <span class="pill-label fw-bold text-dark">Tổng điểm gốc:</span>
+                            <span class="pill-val text-dark">{{ tong_diem_goc }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT 2: ĐIỂM QUY ĐỔI XÉT TUYỂN -->
+                <div class="col-lg-4 col-md-12">
+                    <div class="score-card-col">
+                        <div class="card-header-title">
+                            <i class="fa-solid fa-calculator fs-5"></i> Điểm quy đổi xét tuyển (thang 100)
+                        </div>
+
+                        <div class="score-pill-item">
+                            <span class="pill-label">Điểm thi quy đổi:</span>
+                            <span class="pill-val">{{ diem_thi_qd }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label text-muted">→ chiếm 60%:</span>
+                            <span class="pill-val">{{ diem_thi_60 }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label">Điểm học bạ quy đổi:</span>
+                            <span class="pill-val">{{ diem_hb_qd }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label text-muted">→ chiếm 40%:</span>
+                            <span class="pill-val">{{ diem_hb_40 }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label">Điểm thưởng + KK:</span>
+                            <span class="pill-val">{{ diem_thuong_kk }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label">Điểm ƯTĐT, KV (trước giảm trừ):</span>
+                            <span class="pill-val">{{ diem_utkv_chua_giam_tru|floatformat:2 }}</span>
+                        </div>
+                        <div class="score-pill-item">
+                            <span class="pill-label">Điểm ƯTĐT, KV (sau giảm trừ):</span>
+                            <span class="pill-val">{{ diem_utkv_giam_tru|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT 3: KẾT QUẢ XÉT TUYỂN -->
+                <div class="col-lg-4 col-md-12">
+                    <div class="score-card-col">
+                        <div class="card-header-title">
+                            <i class="fa-solid fa-trophy fs-5"></i> Kết quả
+                        </div>
+                        
+                        <div class="result-display-box">
+                            <label>ĐIỂM XÉT TUYỂN</label>
+                            <div class="val-amber">{{ ts.pt2_qd|default:"70.31" }}</div>
+                        </div>
+
+                        <div class="result-display-box">
+                            <label>ĐIỂM CHUẨN</label>
+                            <div class="val-teal">{{ diem_chuan|default:"60" }}</div>
+                        </div>
+
+                        <button class="btn-status-green">
+                            <i class="fa-solid fa-circle-check"></i> ĐẠT
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

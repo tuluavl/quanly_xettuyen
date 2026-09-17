@@ -1,0 +1,289 @@
+{% extends 'xettuyen/base.html' %}
+
+{% block page_icon %}fa-solid fa-user-check{% endblock %}
+{% block page_title %}Danh sách trúng tuyển{% endblock %}
+{% block page_subtitle %}Danh sách thí sinh trúng tuyển từ kết quả lọc ảo{% endblock %}
+{% block breadcrumb %}Danh Sách Trúng Tuyển{% endblock %}
+
+{% block content %}
+<div class="card-box">
+    <h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">DANH SÁCH THÍ SINH TRÚNG TUYỂN</h4>
+
+    <!-- KHỐI THỐNG KÊ SỐ LƯỢNG -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm border-0 rounded-3">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">TỔNG TRÚNG TUYỂN</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.total|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-users fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow-sm border-0 rounded-3">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">PHƯƠNG THỨC THPT</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.thpt|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-graduation-cap fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm border-0 rounded-3">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-dark-50 fw-bold">PHƯƠNG THỨC V-SAT</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.vsat|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-award fa-2x text-black-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm border-0 rounded-3">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">PHƯƠNG THỨC ĐGNL</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.dgnl|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-chart-line fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- THANH CÔNG CỤ NÚT BẤM -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-primary btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#modalTaoMaSV">
+            <i class="fa-solid fa-id-card me-1"></i> Tạo MaSV tự động
+        </button>
+        <button class="btn btn-info btn-sm fw-bold text-white px-3 py-1" data-bs-toggle="modal" data-bs-target="#modalTaoSoCV">
+            <i class="fa-solid fa-file-signature me-1"></i> Cập nhật Số CV & Page
+        </button>
+        <button class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#modalImportBoSung">
+            <i class="fa-solid fa-file-import me-1"></i> Import bổ sung thông tin
+        </button>
+		<a href="{% url 'xuat_excel_trung_tuyen' %}" 
+                class="btn btn-custom-yellow btn-sm fw-bold fw-bold px-3 py-1"
+                 onclick="thongBaoXuatExcel()">
+             <i class="fa-solid fa-file-excel me-1"></i> Xuất danh sách trúng tuyển
+        </a>   
+
+		</button>
+		<!-- Thay thế đoạn thẻ <a> cũ bằng form bên dưới -->
+		<form action="{% url 'dong_bo_thong_tin_trung_tuyen' %}" method="POST" class="d-inline">
+		{% csrf_token %}
+		<button type="submit" class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1">
+        <i class="fas fa-sync-alt me-1"></i> Đồng bộ dữ liệu thông tin trúng tuyển
+		</button>
+		</form>
+		</button>
+		
+
+		<button class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fa-solid fa-file-export me-1"></i> Xuất dữ liệu nhập học
+        </button>
+				
+		
+        <ul class="dropdown-menu shadow rounded-3">
+            <li>
+                <a class="dropdown-item py-2" href="{% url 'export_import_nhap_hoc' %}">
+                    <i class="fa-solid fa-file-excel text-success me-2"></i> File Import hệ thống nhập học (.xlsx)
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item py-2" href="{% url 'export_hoso_trung_tuyen' %}">
+                    <i class="fa-solid fa-file-invoice text-primary me-2"></i> File Hồ sơ trúng tuyển chi tiết (.xlsx)
+                </a>
+            </li>
+        </ul>		
+	   
+    </div>
+
+
+    <!-- BẢNG HIỂN THỊ DỮ LIỆU -->
+    <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
+        <thead>
+            <tr>
+                <th class="text-uppercase">STT</th>
+				<th class="text-uppercase">ID SV</th>               
+				<th class="text-uppercase">Số CV</th>
+                <th class="text-uppercase">Họ tên</th>
+                <th class="text-uppercase">Email</th>
+                <th class="text-uppercase">Mã ĐKXT</th>
+                <th class="text-uppercase">Ngày sinh</th>
+                <th class="text-uppercase">ĐTUT</th>
+                <th class="text-uppercase">KVUT</th>
+                <th class="text-uppercase">Phương thức xét</th>
+                <th class="text-uppercase">PTXT</th>
+                <th class="text-uppercase">CTĐT</th>
+				<th class="text-uppercase">Điểm cộng</th>
+                <th class="text-uppercase">Học bạ</th>
+                <th class="text-uppercase">THM TN</th>
+                <th class="text-uppercase">Môn 1 (TN)</th>
+                <th class="text-uppercase">Điểm 1 (TN)</th>
+                <th class="text-uppercase">Môn 2 (TN)</th>
+                <th class="text-uppercase">Điểm 2 (TN)</th>
+                <th class="text-uppercase">Môn 3 (TN)</th>
+                <th class="text-uppercase">Điểm 3 (TN)</th>
+                <th class="text-uppercase">Điểm ĐGNL</th>
+                <th class="text-uppercase">THM VSAT</th>
+                <th class="text-uppercase">Môn 1 (VSAT)</th>
+                <th class="text-uppercase">Điểm 1 (VSAT)</th>
+                <th class="text-uppercase">Môn 2 (VSAT)</th>
+                <th class="text-uppercase">Điểm 2 (VSAT)</th>
+                <th class="text-uppercase">Môn 3 (VSAT)</th>
+                <th class="text-uppercase">Điểm 3 (VSAT)</th>
+                <th class="text-uppercase">Điểm TB THPT</th>
+                <th class="text-uppercase">Điểm thi + Học bạ</th>
+                <th class="text-uppercase">Điểm QĐ</th>
+                <th class="text-uppercase">CCCD</th>
+				<th class="text-uppercase">Mã SV</th>
+                <th class="text-uppercase">Barcode</th>
+				<th class="text-uppercase">Điểm TC0</th>
+                <th class="text-uppercase">Điểm Chuẩn</th>
+                <th class="text-uppercase">Page</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ts in danh_sach %}
+                <tr>
+                    <td class="text-center fw-bold">{{ forloop.counter }}</td>
+					<td>{{ ts.IDSV|default:"" }}</td>
+                    <td>{{ ts.so_cv|default:"" }}</td>
+                    <td class="fw-bold">{{ ts.ho_ten|default:"" }}</td>
+                    <td>{{ ts.email|default:"" }}</td>
+                    <td>{{ ts.ma_dkxt|default:"" }}</td>
+                    <td>{{ ts.ngay_sinh|default:"" }}</td>
+                    <td class="text-center">{{ ts.dtut|default:"" }}</td>
+                    <td class="text-center">{{ ts.kvut|default:"" }}</td>
+                    <td>{{ ts.phuong_thuc_xet|default:"" }}</td>
+                    <td><span class="badge bg-info text-dark">{{ ts.ptxt|default:"" }}</span></td>
+                    <td><span class="badge bg-primary">{{ ts.ctdt|default:"" }}</span></td>
+					<td><span class="badge bg-primary">{{ ts.pt2_diem_cong|default:"" }}</span></td>
+                    <td class="small">{{ ts.hoc_ba|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_thm|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_mamon1|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_diemmon1|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_mamon2|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_diemmon2|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_mamon3|default:"" }}</td>
+                    <td>{{ ts.pt2_tn_diemmon3|default:"" }}</td>
+                    <td class="fw-bold text-info">{{ ts.pt2_dgnl|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_thm|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_mamon1|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_diemmon1|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_mamon2|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_diemmon2|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_mamon3|default:"" }}</td>
+                    <td>{{ ts.pt2_vsat_diemmon3|default:"" }}</td>
+                    <td>{{ ts.pt2a_diemtbthpt|default:"" }}</td>
+                    <td>{{ ts.pt2_diem_qd|default:"" }}</td>
+                    <td class="fw-bold text-danger">{{ ts.pt2_qd|default:"" }}</td>
+                    <td class="fw-bold text-success">{{ ts.cccd|default:"" }}</td>
+                    <td class="fw-bold text-primary">{{ ts.ma_sv|default:"" }}</td>
+					<td><code>{{ ts.barcode|default:"" }}</code></td>
+					<td class="fw-bold text-secondary">{{ ts.dtc0|default:"" }}</td>
+                    <td class="fw-bold text-success">{{ ts.dc|default:"" }}</td>
+                    <td class="text-center">{{ ts.page|default:"" }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="36" class="text-center text-muted">Chưa có dữ liệu thí sinh trúng tuyển</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- MODAL 1: TẠO MASV TỰ ĐỘNG -->
+<div class="modal fade" id="modalTaoMaSV" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'tao_ma_sv' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-header-title fw-bold">Tạo Mã Sinh Viên Tự Động</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tiền tố MaSV (7 chữ số):</label>
+                        <input type="text" name="prefix_masv" class="form-control" placeholder="Ví dụ: 3126157" required maxlength="7">
+                        <div class="form-text">Hệ thống sẽ tự động nối 4 số tự tăng tiếp theo cho các thí sinh chưa có MaSV và cập nhật các cột ID, MSSV (ma_sv), Barcode.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Tạo & Lưu Mã SV</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CẬP NHẬT SỐ CV & PAGE -->
+<div class="modal fade" id="modalTaoSoCV" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'cap_nhat_so_cv' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-header-title fw-bold">Cập Nhật Số CV & Page Tự Động</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Số CV bắt đầu (Không bắt buộc):</label>
+                        <input type="number" name="so_cv" class="form-control" placeholder="Để trống hệ thống sẽ tự lấy số nối tiếp lớn nhất">
+                        <div class="form-text">
+                            Nếu để trống, hệ thống sẽ tự dò số CV lớn nhất đang có trong DB và cộng tiếp +1.
+                        </div>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="mode_all" value="1" id="checkModeAll">
+                        <label class="form-check-label text-danger fw-bold" for="checkModeAll">
+                            Gán lại toàn bộ danh sách (Bao gồm cả SV đã có CV)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-info text-white btn-sm fw-bold">Lưu Dữ Liệu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: IMPORT BỔ SUNG THÔNG TIN -->
+<div class="modal fade" id="modalImportBoSung" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{% url 'import_bo_sung_trung_tuyen' %}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-header-title fw-bold">Import Bổ Sung Thông Tin Thí Sinh</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn file Excel cập nhật (.xlsx, .xls):</label>
+                        <input type="file" name="file_excel" class="form-control" accept=".xlsx, .xls" required>
+                        <div class="form-text">Hệ thống dựa theo CCCD hoặc Mã ĐKXT để cập nhật các thông tin còn thiếu (Ngày sinh, Mã xét tuyển...).</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-success btn-sm fw-bold">Tải lên & Cập nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

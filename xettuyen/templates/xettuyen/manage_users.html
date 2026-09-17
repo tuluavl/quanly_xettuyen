@@ -1,0 +1,1306 @@
+{% extends 'xettuyen/base.html' %}
+
+{% block page_icon %}fa-solid fa-users-gear{% endblock %}
+{% block page_title %}Quản lý tài khoản & Phân quyền{% endblock %}
+{% block page_subtitle %}Thêm, sửa, khóa tài khoản, phân quyền và xem nhật ký thao tác hệ thống{% endblock %}
+{% block breadcrumb %}Quản Lý Tài Khoản{% endblock %}
+
+{% block content %}
+<style>
+    /* Styling DataTables Filter & Length Select */
+    .dataTables_wrapper .dataTables_length select {
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        padding: 4px 26px 4px 10px !important;
+        font-size: 13px;
+        color: #334155;
+        outline: none;
+        min-width: 65px;
+        cursor: pointer;
+    }
+    .dataTables_wrapper .dataTables_filter input {
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        padding: 6px 14px;
+        font-size: 13px;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    .dataTables_wrapper .dataTables_filter input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Bảng dữ liệu hiện đại */
+    .table-modern {
+        table-layout: fixed !important;
+        width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0;
+    }
+
+    .table-modern th:nth-child(1) { width: 50px; }   /* STT */
+    .table-modern th:nth-child(2) { width: 22%; }   /* Tài khoản */
+    .table-modern th:nth-child(3) { width: 14%; }   /* Vai trò */
+    .table-modern th:nth-child(4) { width: 15%; }   /* Trạng thái & 2FA */
+    .table-modern th:nth-child(5) { width: 31%; }   /* Quyền hạn */
+    .table-modern th:nth-child(6) { width: 145px; }  /* Thao tác */
+
+    .table-modern thead th {
+        background-color: #f8fafc !important;
+        color: #475569 !important;
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-bottom: 2px solid #e2e8f0 !important;
+        padding: 12px 14px !important;
+    }
+    .table-modern tbody td {
+        padding: 12px 14px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        color: #334155;
+        font-size: 13px;
+    }
+    .table-modern tbody tr:hover {
+        background-color: #f8fafc !important;
+    }
+
+    .table-modern th.no-sort::before,
+    .table-modern th.no-sort::after {
+        display: none !important;
+    }
+    .table-modern th.no-sort {
+        cursor: default !important;
+    }
+
+    /* Avatar đại diện dạng chữ */
+    .avatar-circle {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+
+    /* Badges & Perm Tags */
+    .badge-role-admin { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; }
+    .badge-role-user { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 600; }
+    
+    .badge-perm {
+        font-weight: 500;
+        font-size: 11px;
+        padding: 3px 8px;
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-family: monospace;
+    }
+    
+    /* Card Quyền mặc định */
+    .perm-card-item {
+        transition: all 0.2s ease-in-out;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0 !important;
+    }
+
+    .perm-card-item:hover {
+        border-color: #93c5fd !important;
+        background-color: #f8fafc;
+    }
+
+    /* Style nổi bật cho Quyền ĐÃ CHỌN - MÀU CAM */
+    .perm-card-item.is-checked {
+        background-color: #fff7ed !important;
+        border-color: #fb923c !important;
+        box-shadow: 0 2px 6px rgba(234, 88, 12, 0.15);
+    }
+
+    .perm-card-item.is-checked .perm-title {
+        color: #c2410c !important;
+        font-weight: 700 !important;
+    }
+
+    .perm-card-item.is-checked code {
+        background-color: #ffedd5 !important;
+        color: #9a3412 !important;
+    }
+    
+    /* Khung chứa nhóm nút thao tác */
+    .action-btn-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #f8fafc;
+        padding: 4px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-action-icon {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        border: none;
+        font-size: 12px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+    }
+
+    .btn-action-edit { color: #0284c7; background-color: #e0f2fe; }
+    .btn-action-edit:hover { background-color: #0284c7; color: #ffffff; }
+
+    .btn-action-perm { color: #d97706; background-color: #fef3c7; }
+    .btn-action-perm:hover { background-color: #d97706; color: #ffffff; }
+
+    .btn-action-lock { color: #dc2626; background-color: #fee2e2; }
+    .btn-action-lock:hover { background-color: #dc2626; color: #ffffff; }
+
+    .btn-action-unlock { color: #16a34a; background-color: #dcfce7; }
+    .btn-action-unlock:hover { background-color: #16a34a; color: #ffffff; }
+
+    .btn-action-delete { color: #64748b; background-color: #f1f5f9; }
+    .btn-action-delete:hover { background-color: #475569; color: #ffffff; }
+
+    /* Custom Nav Tabs Top */
+    .custom-main-tabs .nav-link {
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 18px;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .custom-main-tabs .nav-link.active {
+        color: #2563eb;
+        border-bottom: 2px solid #2563eb;
+        background: transparent;
+    }
+
+    /* Tab Sidebar trong Modal Phân Quyền */
+    .tab-sidebar { width: 260px; flex-shrink: 0; }
+    .tab-sidebar .nav-link {
+        color: #334155;
+        font-weight: 500;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+    }
+    .tab-sidebar .nav-link.active {
+        background-color: #2563eb !important;
+        color: #fff !important;
+    }
+
+    /* Badge & Icon menu trái khi có quyền được chọn (MÀU CAM) */
+    .badge-orange {
+        background-color: #ea580c !important;
+        color: #ffffff !important;
+    }
+    .text-orange {
+        color: #ea580c !important;
+    }
+
+    /* Icon dấu hỏi tròn phong cách Modal Xác nhận */
+    .confirm-icon-wrapper {
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        border: 4px solid #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+    }
+</style>
+
+<div class="card border-0 shadow-sm rounded-3">
+    <!-- Header Card -->
+    <div class="card-header bg-white border-bottom pt-3 px-4 pb-0">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 pb-3">
+            <ul class="nav nav-tabs custom-main-tabs card-header-tabs m-0 border-0" id="mainTab" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#tab-users" type="button">
+                        <i class="fa-solid fa-users me-1.5 text-primary"></i> Danh sách tài khoản
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#tab-audit" type="button">
+                        <i class="fa-solid fa-clock-rotate-left me-1.5 text-danger"></i> Nhật ký thao tác (Audit Logs)
+                    </button>
+                </li>
+            </ul>
+
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm fw-semibold px-3 py-1.5 rounded-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCreateUser">
+                    <i class="fa-solid fa-user-plus me-1"></i> Tạo Tài Khoản
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold px-3 py-1.5 rounded-2" data-bs-toggle="modal" data-bs-target="#modalManageGroups">
+                    <i class="fa-solid fa-folder-tree me-1"></i> Nhóm Quyền
+                </button>
+                <button type="button" class="btn btn-outline-success btn-sm fw-semibold px-3 py-1.5 rounded-2" data-bs-toggle="modal" data-bs-target="#modalCreatePermission">
+                    <i class="fa-solid fa-plus-circle me-1"></i> Tạo Quyền Mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nội dung Tab chính -->
+    <div class="card-body p-4">
+        <div class="tab-content" id="mainTabContent">
+            
+            <!-- TAB 1: DANH SÁCH TÀI KHOẢN -->
+            <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-modern js-datatable align-middle w-100">
+                        <thead>
+                            <tr>
+                                <th class="text-center">STT</th>
+                                <th>Người dùng</th>
+                                <th>Vai trò</th>
+								<th>Trạng thái</th>
+								<th>Quyền hạn được cấp</th>
+                                <th class="text-center no-sort">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                                <tr>
+                                    <td class="text-center fw-semibold text-muted">{{ forloop.counter }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle bg-primary-subtle text-primary border border-primary-subtle">
+                                                {{ u.username|slice:":1"|upper }}
+                                            </div>
+                                            <div class="text-truncate" style="max-width: 180px;">
+											<div class="fw-bold text-dark fs-7 lh-sm">{{ u.username }}</div>
+												<small class="text-muted d-block text-truncate fs-8 mt-0.5">{{ u.full_name }}</small>
+												{% if u.email %}
+												<small class="text-primary d-block text-truncate fs-8"><i class="fa-regular fa-envelope me-1"></i>{{ u.email }}</small>
+												{% endif %}
+											</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if u.role.code == 'admin' %}
+                                            <span class="badge badge-role-admin rounded-pill px-2.5 py-1">
+                                                <i class="fa-solid fa-shield-cat me-1"></i>{{ u.role.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-role-user rounded-pill px-2.5 py-1">
+                                                {{ u.role.name|default:"Chưa gán" }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+									
+                                    <td>
+                                        <div class="d-flex flex-column gap-1 align-items-start">
+                                            {% if u.is_active %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 fs-8">
+                                                    <i class="fa-solid fa-circle-check me-1"></i> Hoạt động
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5 fs-8">
+                                                    <i class="fa-solid fa-lock me-1"></i> Đã bị khóa
+                                                </span>
+                                            {% endif %}
+
+                                            {% if u.profile.is_2fa_enabled %}
+                                                <span class="badge bg-info-subtle text-info fs-9"><i class="fa-solid fa-shield-halved me-1"></i> 2FA: Bật</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="perm-container d-flex flex-wrap gap-1 align-items-center">
+                                            {% if u.role and u.role.code == 'admin' %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold rounded-pill px-2.5 py-1">
+                                                    <i class="fa-solid fa-crown me-1"></i> Toàn quyền hệ thống
+                                                </span>
+                                            {% elif u.role and u.role.permissions.all %}
+                                                {% for perm in u.role.permissions.all|slice:":2" %}
+                                                    <span class="badge badge-perm">{{ perm.code }}</span>
+                                                {% endfor %}
+
+                                                {% if u.role.permissions.count > 2 %}
+                                                    <span class="badge bg-secondary-subtle text-secondary border rounded px-2 py-0.5 cursor-pointer fs-8" 
+                                                          data-bs-toggle="tooltip" 
+                                                          data-bs-html="true"
+                                                          data-bs-placement="top" 
+                                                          title="<b>Quyền đầy đủ:</b><br>{% for p in u.role.permissions.all %}- {{ p.name }} (<code>{{ p.code }}</code>)<br>{% endfor %}">
+                                                        +{{ u.role.permissions.count|add:"-2" }} quyền...
+                                                    </span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted small fst-italic fs-8">Chưa cấp quyền</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="action-btn-group">
+                                            <!-- Sửa thông tin -->
+                                            <button type="button" class="btn-action-icon btn-action-edit" data-bs-toggle="modal" data-bs-target="#modalEditUser{{ u.id }}" title="Sửa thông tin">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+
+                                            <!-- Sửa Quyền -->
+                                            {% if u.role %}
+                                            <button type="button" class="btn-action-icon btn-action-perm" data-bs-toggle="modal" data-bs-target="#modalEditRolePerms{{ u.role.id }}" title="Phân quyền vai trò">
+                                                <i class="fa-solid fa-user-gear"></i>
+                                            </button>
+                                            {% endif %}
+
+                                            <!-- Toggle Khóa / Mở khóa (Kích hoạt Modal) -->
+                                            {% if u.username != 'admin' %}
+                                                {% if u.is_active %}
+                                                    <button type="button" class="btn-action-icon btn-action-lock" title="Khóa tài khoản" data-bs-toggle="modal" data-bs-target="#modalToggleStatus{{ u.id }}">
+                                                        <i class="fa-solid fa-user-slash"></i>
+                                                    </button>
+                                                {% else %}
+                                                    <button type="button" class="btn-action-icon btn-action-unlock" title="Mở khóa tài khoản" data-bs-toggle="modal" data-bs-target="#modalToggleStatus{{ u.id }}">
+                                                        <i class="fa-solid fa-user-check"></i>
+                                                    </button>
+                                                {% endif %}
+											<form method="POST" class="d-inline">
+											{% csrf_token %}
+											<input type="hidden" name="action" value="toggle_2fa">
+											<input type="hidden" name="user_id" value="{{ u.id }}">
+											<!-- Nút Mở Modal Bật/Tắt 2FA -->
+													<button type="button" 
+														class="btn-action-icon {% if u.profile.is_2fa_enabled %}text-warning bg-warning-subtle{% else %}text-info bg-info-subtle{% endif %}" 
+														title="{% if u.profile.is_2fa_enabled %}Tắt 2FA{% else %}Bật 2FA{% endif %}"
+														data-bs-toggle="modal" 
+														data-bs-target="#modalToggle2FA{{ u.id }}">
+														<i class="fa-solid fa-shield-halved"></i>
+													</button>
+											</form>
+                                                <!-- Xóa user -->
+                                                <button type="button" class="btn-action-icon btn-action-delete" data-bs-toggle="modal" data-bs-target="#modalDeleteUser{{ u.id }}" title="Xóa hẳn tài khoản">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Chưa có tài khoản nào trong hệ thống</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: AUDIT LOGS -->
+            <div class="tab-pane fade" id="tab-audit" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle border rounded">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="py-2.5">Thời gian</th>
+                                <th class="py-2.5">Người thực hiện</th>
+                                <th class="py-2.5">Thao tác</th>
+                                <th class="py-2.5">Tài khoản tác động</th>
+                                <th class="py-2.5">Chi tiết</th>
+                                <th class="py-2.5">Địa chỉ IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in audit_logs %}
+                            <tr>
+                                <td class="small text-muted">{{ log.created_at|date:"d/m/Y H:i:s" }}</td>
+                                <td class="fw-bold text-dark fs-7">{{ log.actor.username|default:"System" }}</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary border">{{ log.get_action_display }}</span></td>
+                                <td class="text-primary fw-semibold fs-7">{{ log.target_user.username }}</td>
+                                <td class="small text-muted">{{ log.details }}</td>
+                                <td><code>{{ log.ip_address }}</code></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Chưa có nhật ký ghi nhận</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALS SECTION ================= -->
+
+<!-- Modal Tạo Tài Khoản Mới -->
+<div class="modal fade" id="modalCreateUser" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_user">
+
+                <div class="modal-header bg-primary text-white">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-user-plus me-1"></i> Tạo Tài Khoản Người Dùng Mới
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Tên đăng nhập <span class="text-danger">*</span></label>
+                        <input type="text" name="username" class="form-control form-control-sm" placeholder="Nhập username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Họ và tên <span class="text-danger">*</span></label>
+                        <input type="text" name="full_name" class="form-control form-control-sm" placeholder="Nhập họ và tên đầy đủ" required>
+                    </div>
+					<div class="mb-3">
+						<label class="form-label fw-bold fs-7">Địa chỉ Email</label>
+						<input type="email" name="email" class="form-control form-control-sm" placeholder="vd: user@domain.com">
+					</div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Mật khẩu <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control form-control-sm" placeholder="Nhập mật khẩu khởi tạo" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Gán Vai Trò (Role)</label>
+                        <select name="role_id" class="form-select form-select-sm">
+                            <option value="">-- Chưa gán vai trò --</option>
+                            {% for r in roles %}
+                                <option value="{{ r.id }}">{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fa-solid fa-check me-1"></i> Tạo tài khoản
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sửa, Xóa & Khóa/Mở Khóa User -->
+{% for u in users %}
+<!-- Modal Sửa Người Dùng -->
+<div class="modal fade" id="modalEditUser{{ u.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_user">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+
+                <div class="modal-header bg-secondary text-white">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-user-pen me-1"></i> Chỉnh Sửa Tài Khoản: {{ u.username }}
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Họ và tên <span class="text-danger">*</span></label>
+                        <input type="text" name="full_name" value="{{ u.full_name }}" class="form-control form-control-sm" required>
+                    </div>
+					<div class="mb-3">
+						<label class="form-label fw-bold fs-7">Địa chỉ Email</label>
+						<input type="email" name="email" value="{{ u.email|default:'' }}" class="form-control form-control-sm" placeholder="vd: user@domain.com">
+					</div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Vai trò</label>
+                        <select name="role_id" class="form-select form-select-sm">
+                            <option value="">-- Chưa gán --</option>
+                            {% for r in roles %}
+                                <option value="{{ r.id }}" {% if r.id == u.role_id %}selected{% endif %}>{{ r.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Mật khẩu mới</label>
+                        <input type="password" name="password" class="form-control form-control-sm" placeholder="Để trống nếu không muốn đổi mật khẩu">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Cập nhật
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xác nhận Khóa / Mở khóa tài khoản -->
+{% if u.username != 'admin' %}
+<div class="modal fade" id="modalToggleStatus{{ u.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_user_status">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+
+                <div class="modal-body text-center p-4">
+                    <!-- Icon dấu hỏi tròn lớn -->
+                    <div class="confirm-icon-wrapper mx-auto mb-3">
+                        <i class="fa-solid fa-question text-secondary opacity-75"></i>
+                    </div>
+
+                    {% if u.is_active %}
+                        <h4 class="fw-bold text-dark mb-2">Khóa tài khoản?</h4>
+                        <p class="text-muted fs-7 mb-4">
+                            Bạn có chắc chắn muốn <strong>KHÓA</strong> tài khoản <strong class="text-dark">{{ u.username }}</strong>?<br>Tài khoản này sẽ tạm thời không thể đăng nhập vào hệ thống.
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="submit" class="btn btn-warning fw-semibold px-3 py-2 rounded-3 shadow-sm text-white">
+                                <i class="fa-solid fa-lock me-1"></i> Đồng ý khóa
+                            </button>
+                            <button type="button" class="btn btn-secondary fw-semibold px-4 py-2 rounded-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        </div>
+                    {% else %}
+                        <h4 class="fw-bold text-dark mb-2">Mở khóa tài khoản?</h4>
+                        <p class="text-muted fs-7 mb-4">
+                            Bạn có chắc chắn muốn <strong>MỞ KHÓA</strong> cho tài khoản <strong class="text-dark">{{ u.username }}</strong>?<br>Tài khoản sẽ khôi phục quyền truy cập hệ thống bình thường.
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="submit" class="btn btn-success fw-semibold px-3 py-2 rounded-3 shadow-sm">
+                                <i class="fa-solid fa-lock-open me-1"></i> Đồng ý mở khóa
+                            </button>
+                            <button type="button" class="btn btn-secondary fw-semibold px-4 py-2 rounded-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal Xác nhận Bật / Tắt 2FA -->
+<div class="modal fade" id="modalToggle2FA{{ u.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_2fa">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+
+                <div class="modal-body text-center p-4">
+                    <div class="confirm-icon-wrapper mx-auto mb-3">
+                        <i class="fa-solid fa-shield-halved text-secondary opacity-75"></i>
+                    </div>
+
+                    {% if u.profile.is_2fa_enabled %}
+                        <h4 class="fw-bold text-dark mb-2">Tắt xác thực 2FA?</h4>
+                        <p class="text-muted fs-7 mb-4">
+                            Bạn có chắc chắn muốn <strong>TẮT</strong> xác thực 2 yếu tố cho tài khoản <strong class="text-dark">{{ u.username }}</strong>?
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="submit" class="btn btn-warning fw-semibold px-3 py-2 rounded-3 shadow-sm text-white">
+                                <i class="fa-solid fa-shield-halved me-1"></i> Đồng ý tắt 2FA
+                            </button>
+                            <button type="button" class="btn btn-secondary fw-semibold px-4 py-2 rounded-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        </div>
+                    {% else %}
+                        <h4 class="fw-bold text-dark mb-2">Bật xác thực 2FA?</h4>
+                        <p class="text-muted fs-7 mb-4">
+                            Bạn có chắc chắn muốn <strong>BẬT</strong> xác thực 2 yếu tố cho tài khoản <strong class="text-dark">{{ u.username }}</strong>?
+                        </p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="submit" class="btn btn-info fw-semibold px-3 py-2 rounded-3 shadow-sm text-white">
+                                <i class="fa-solid fa-shield-halved me-1"></i> Đồng ý bật 2FA
+                            </button>
+                            <button type="button" class="btn btn-secondary fw-semibold px-4 py-2 rounded-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal Xóa Người Dùng -->
+<div class="modal fade" id="modalDeleteUser{{ u.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_user">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> Xác Nhận Xóa
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-3">
+                    <p class="mb-1 fs-7">Bạn có chắc chắn muốn xóa tài khoản này?</p>
+                    <strong class="text-danger fs-6">{{ u.username }}</strong> ({{ u.full_name }})
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Thoát</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-3">
+                        <i class="fa-solid fa-trash-can me-1"></i> Xóa ngay
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Phân Quyền Dạng Tab Chức Năng -->
+{% for r in roles %}
+<div class="modal fade text-start modal-edit-perms" id="modalEditRolePerms{{ r.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_permissions">
+                <input type="hidden" name="role_id" value="{{ r.id }}">
+
+                <div class="modal-header bg-warning text-dark py-2">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Cấu hình quyền cho Vai trò: <span class="text-decoration-underline">{{ r.name }}</span>
+                    </h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <span class="small text-muted">Chọn nhóm chức năng bên dưới để phân quyền:</span>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary btn-xs" onclick="toggleAllPerms('modalEditRolePerms{{ r.id }}', true)">Chọn tất cả</button>
+                            <button type="button" class="btn btn-outline-secondary btn-xs" onclick="toggleAllPerms('modalEditRolePerms{{ r.id }}', false)">Bỏ chọn</button>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-3">
+                        <!-- Sidebar Tab -->
+                        <div class="tab-sidebar border-end pe-2">
+                            <div class="nav flex-column nav-pills" id="v-pills-tab-{{ r.id }}" role="tablist">
+                                {% for group_name, perms in grouped_permissions.items %}
+                                    {% if perms %}
+                                        <button class="nav-link text-start mb-1 d-flex justify-content-between align-items-center {% if forloop.first %}active{% endif %}" 
+                                                id="tab-btn-{{ r.id }}-{{ forloop.counter }}" 
+                                                data-bs-toggle="pill" 
+                                                data-bs-target="#tab-content-{{ r.id }}-{{ forloop.counter }}" 
+                                                type="button" role="tab">
+                                            <span class="text-truncate me-2" title="{{ group_name }}">
+                                                <i class="fa-solid fa-folder me-1 text-secondary"></i> {{ group_name }}
+                                            </span>
+                                            <span class="badge bg-secondary rounded-pill fs-9">{{ perms|length }}</span>
+                                        </button>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Content Tab -->
+                        <div class="flex-grow-1">
+                            <div class="tab-content" id="v-pills-tabContent-{{ r.id }}" style="max-height: 480px; overflow-y: auto; padding-right: 5px;">
+                                {% for group_name, perms in grouped_permissions.items %}
+                                    {% if perms %}
+                                        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+                                             id="tab-content-{{ r.id }}-{{ forloop.counter }}" 
+                                             role="tabpanel">
+                                            
+                                            <div class="fw-bold text-primary mb-3 pb-2 border-bottom fs-7">
+                                                <i class="fa-solid fa-list-check me-1"></i> {{ group_name }}
+                                            </div>
+
+                                            <div class="row g-2">
+                                                {% for perm in perms %}
+                                                    <div class="col-md-6">
+                                                        <div class="perm-card-item rounded p-2 ps-3 border {% if perm in r.permissions.all %}is-checked{% endif %}">
+                                                            <div class="form-check m-0">
+                                                                <input class="form-check-input perm-checkbox" type="checkbox" name="permissions" value="{{ perm.id }}" id="perm_{{ r.id }}_{{ perm.id }}"
+                                                                    {% if perm in r.permissions.all %}checked{% endif %}>
+                                                                <label class="form-check-label d-block text-dark cursor-pointer" for="perm_{{ r.id }}_{{ perm.id }}" style="font-size: 13px;">
+                                                                    <span class="fw-semibold perm-title">{{ perm.name }}</span>
+                                                                    <span class="d-block text-muted" style="font-size: 11px;">Mã: <code>{{ perm.code }}</code></span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>                                          
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Thoát</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fa-solid fa-check me-1"></i> Lưu thiết lập quyền
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Tạo Quyền Mới -->
+<div class="modal fade" id="modalCreatePermission" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_permission">
+
+                <div class="modal-header bg-success text-white">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fa-solid fa-key me-1"></i> Tạo Quyền Truy Cập Mới
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Thuộc Nhóm Chức Năng (Group) <span class="text-danger">*</span></label>
+                        <select name="perm_group" class="form-select form-select-sm" required>
+                            {% for key, label in group_choices %}
+                                <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Tên quyền hiển thị <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_name" class="form-control form-control-sm" placeholder="VD: Import danh sách Tổ hợp môn" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Mã hệ thống (Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_code" class="form-control form-control-sm" placeholder="VD: import_to_hop_mon" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-success px-3">
+                        <i class="fa-solid fa-plus me-1"></i> Tạo quyền
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Quản Lý Nhóm Quyền -->
+<div class="modal fade" id="modalManageGroups" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <div class="modal-header bg-primary text-white py-3">
+                <h6 class="modal-title fw-bold fs-6">
+                    <i class="fa-solid fa-folder-tree me-2"></i> Quản Lý & Chuyển Nhóm Cho Quyền
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <div id="modalAlertContainer"></div>
+
+                <form method="POST" action="{% url 'manage_users' %}" id="formBulkUpdateGroup">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="bulk_update_group">
+
+                    <div class="card border-0 bg-light shadow-sm mb-3">
+                        <div class="card-body p-3">
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold small text-secondary mb-1">
+                                        <i class="fa-solid fa-right-to-bracket me-1 text-primary"></i> Chuyển các quyền đã chọn sang nhóm:
+                                    </label>
+                                    <select name="target_group" class="form-select form-select-sm border-primary" required>
+                                        <option value="">-- Chọn Nhóm Đích --</option>
+                                        {% for key, label in group_choices %}
+                                            <option value="{{ key }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-1.5 shadow-sm">
+                                        <i class="fa-solid fa-right-left me-1"></i> Cập Nhật Nhóm
+                                    </button>
+                                </div>
+                                <div class="col-md-3 text-md-end">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-7 px-3 py-2 rounded-pill">
+                                        Đã chọn: <strong id="selectedCount">0</strong> quyền
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-7">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="text" id="filterPermSearch" class="form-control border-start-0" placeholder="Tìm kiếm theo tên quyền hoặc mã code..." onkeyup="filterPermissionsTable()">
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <select id="filterGroupSelect" class="form-select form-select-sm" onchange="filterPermissionsTable()">
+                                <option value="">-- Tất cả nhóm hiện tại --</option>
+                                {% for key, label in group_choices %}
+                                    <option value="{{ label }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive rounded border" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-hover table-sm align-middle mb-0" id="tableManageGroups">
+                            <thead class="table-light sticky-top shadow-sm" style="z-index: 5;">
+                                <tr>
+                                    <th style="width: 40px;" class="text-center py-2">
+                                        <input type="checkbox" class="form-check-input" id="checkAllBulk" onclick="toggleBulkSelect(this)">
+                                    </th>
+                                    <th class="py-2">Tên Quyền</th>
+                                    <th class="py-2">Mã Code</th>
+                                    <th class="py-2">Nhóm Hiện Tại</th>
+                                    <th class="py-2 text-center" style="width: 80px;">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in all_permissions %}
+                                <tr class="perm-row">
+                                    <td class="text-center">
+                                        <input type="checkbox" name="perm_ids" value="{{ p.id }}" class="form-check-input bulk-perm-cb" onchange="updateSelectedCount()">
+                                    </td>
+                                    <td class="fw-semibold fs-7 text-dark perm-name">{{ p.name }}</td>
+                                    <td><code class="text-danger bg-light px-2 py-0.5 rounded perm-code">{{ p.code }}</code></td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle fw-medium perm-group">
+                                            {{ p.get_group_display|default:p.group }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center gap-1">
+                                            <button type="button" 
+                                                    class="btn btn-xs btn-outline-primary py-0 px-1.5 btn-open-submodal" 
+                                                    data-target="#modalEditPerm{{ p.id }}" 
+                                                    title="Chỉnh sửa quyền">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-xs btn-outline-danger py-0 px-1.5 btn-open-submodal" 
+                                                    data-target="#modalDeletePerm{{ p.id }}" 
+                                                    title="Xóa quyền">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">Chưa có quyền nào trong hệ thống</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sửa & Xóa Quyền Chức Năng -->
+{% for p in all_permissions %}
+<div class="modal fade" id="modalEditPerm{{ p.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}" class="ajax-edit-perm-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_permission">
+                <input type="hidden" name="perm_id" value="{{ p.id }}">
+
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold fs-7">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> Chỉnh Sửa Quyền: {{ p.code }}
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Thuộc Nhóm Chức Năng <span class="text-danger">*</span></label>
+                        <select name="perm_group" class="form-select form-select-sm" required>
+                            {% for key, label in group_choices %}
+                                <option value="{{ key }}" {% if key == p.group %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Tên quyền hiển thị <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_name" value="{{ p.name }}" class="form-control form-control-sm" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold fs-7">Mã hệ thống (Code) <span class="text-danger">*</span></label>
+                        <input type="text" name="perm_code" value="{{ p.code }}" class="form-control form-control-sm" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Cập nhật
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDeletePerm{{ p.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="{% url 'manage_users' %}" class="ajax-delete-perm-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_permission">
+                <input type="hidden" name="perm_id" value="{{ p.id }}">
+
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title fw-bold fs-7">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i> Xác Nhận Xóa Quyền
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-3">
+                    <p class="mb-1 fs-7">Bạn có chắc chắn muốn xóa quyền này?</p>
+                    <strong class="text-danger fs-6">{{ p.name }}</strong>
+                    <div class="text-muted small mt-1"><code>{{ p.code }}</code></div>
+                </div>
+                <div class="modal-footer bg-light py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Thoát</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-3">
+                        <i class="fa-solid fa-trash-can me-1"></i> Xóa ngay
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    // 1. Chuyển đổi linh hoạt giữa Modal Quản lý nhóm và Modal Sửa/Xóa Quyền
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-open-submodal');
+        if (!btn) return;
+
+        e.preventDefault();
+        const targetModalId = btn.getAttribute('data-target');
+        const parentModalEl = document.getElementById('modalManageGroups');
+        const targetModalEl = document.querySelector(targetModalId);
+
+        if (parentModalEl && targetModalEl) {
+            const bsParent = bootstrap.Modal.getInstance(parentModalEl) || new bootstrap.Modal(parentModalEl);
+            bsParent.hide();
+
+            const bsTarget = bootstrap.Modal.getInstance(targetModalEl) || new bootstrap.Modal(targetModalEl);
+            bsTarget.show();
+
+            const handleChildHidden = function() {
+                const bsParentReopen = bootstrap.Modal.getInstance(parentModalEl) || new bootstrap.Modal(parentModalEl);
+                bsParentReopen.show();
+                targetModalEl.removeEventListener('hidden.bs.modal', handleChildHidden);
+            };
+
+            targetModalEl.addEventListener('hidden.bs.modal', handleChildHidden);
+        }
+    });
+
+    // 2. Hiển thị thông báo Alert bên trong Modal
+    function showModalAlert(message, type = 'success') {
+        const alertContainer = document.getElementById('modalAlertContainer');
+        if (!alertContainer) return;
+
+        const iconClass = type === 'success' ? 'fa-circle-check text-success' : 'fa-circle-exclamation text-danger';
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+
+        alertContainer.innerHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show d-flex align-items-center border-0 shadow-sm py-2 px-3 mb-3" role="alert">
+                <i class="fa-solid ${iconClass} fs-5 me-2"></i>
+                <div class="fw-medium fs-7 text-dark">${message}</div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+
+        setTimeout(function() {
+            const alertEl = alertContainer.querySelector('.alert');
+            if (alertEl) {
+                const bsAlert = bootstrap.Alert.getOrCreateInstance(alertEl);
+                bsAlert.close();
+            }
+        }, 4000);
+    }
+
+    // 3. Giữ scrollbar & body backdrop khi mở lồng nhiều modal Bootstrap
+    document.addEventListener('hidden.bs.modal', function () {
+        if (document.querySelectorAll('.modal.show').length > 0) {
+            document.body.classList.add('modal-open');
+        }
+    });
+
+    // 4. Xử lý submit AJAX chung cho Sửa/Xóa quyền và Chuyển nhóm hàng loạt
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        
+        if (form.classList.contains('ajax-edit-perm-form') || 
+            form.classList.contains('ajax-delete-perm-form') || 
+            form.id === 'formBulkUpdateGroup') {
+            
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            formData.append('is_ajax', '1');
+            const targetUrl = form.getAttribute('action') || window.location.pathname;
+            const modalEl = form.closest('.modal');
+
+            fetch(targetUrl, {
+                method: 'POST',
+                body: formData,
+                headers: { 
+                    'X-Requested-With': 'XMLHttpRequest' 
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    if (modalEl && modalEl.id !== 'modalManageGroups') {
+                        const bsModal = bootstrap.Modal.getInstance(modalEl);
+                        if (bsModal) bsModal.hide();
+                    }
+
+                    // Cập nhật giao diện khi sửa/xóa quyền đơn lẻ
+                    if (data.perm_id) {
+                        const rowCb = document.querySelector(`.bulk-perm-cb[value="${data.perm_id}"]`);
+                        if (rowCb) {
+                            const row = rowCb.closest('tr');
+                            if (form.classList.contains('ajax-delete-perm-form')) {
+                                row.remove();
+                            } else {
+                                if (row.querySelector('.perm-name')) row.querySelector('.perm-name').textContent = data.perm_name;
+                                if (row.querySelector('.perm-code')) row.querySelector('.perm-code').textContent = data.perm_code;
+                                if (row.querySelector('.perm-group')) row.querySelector('.perm-group').textContent = data.perm_group_label;
+                            }
+                        }
+                    }
+
+                    // Cập nhật giao diện khi chuyển nhóm hàng loạt
+                    if (data.updated_ids) {
+                        data.updated_ids.forEach(id => {
+                            const rowCb = document.querySelector(`.bulk-perm-cb[value="${id}"]`);
+                            if (rowCb) {
+                                const row = rowCb.closest('tr');
+                                const groupBadge = row.querySelector('.perm-group');
+                                if (groupBadge) {
+                                    groupBadge.textContent = data.target_group_label;
+                                }
+                                rowCb.checked = false;
+                            }
+                        });
+                        const checkAll = document.getElementById('checkAllBulk');
+                        if (checkAll) checkAll.checked = false;
+                    }
+
+                    updateSelectedCount();
+                    showModalAlert(data.message, 'success');
+                } else {
+                    showModalAlert(data.message || 'Có lỗi xảy ra!', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('AJAX Error:', error);
+                showModalAlert('Lỗi hệ thống hoặc kết nối máy chủ thất bại!', 'error');
+            });
+        }
+    });
+
+    // 5. Khởi tạo khi DOM sẵn sàng
+    document.addEventListener("DOMContentLoaded", function() {
+        // Tắt alert lỗi mặc định DataTables
+        if (typeof $ !== 'undefined' && $.fn.dataTable) {
+            $.fn.dataTable.ext.errMode = 'none';
+        }
+
+        // Cấu hình DataTables
+        if (typeof $ !== 'undefined' && $.fn.DataTable) {
+            var $table = $('.js-datatable');
+            if ($.fn.DataTable.isDataTable($table)) {
+                $table.DataTable().destroy();
+            }
+            
+            $table.DataTable({
+                "columnDefs": [{ "orderable": false, "targets": 5 }],
+                "language": {
+                    "sSearch": "Tìm kiếm:",
+                    "sLengthMenu": "Hiển thị _MENU_ mục",
+                    "sInfo": "Hiển thị _START_ đến _END_ trong tổng số _TOTAL_ mục",
+                    "sZeroRecords": "Không tìm thấy tài khoản nào phù hợp",
+                    "paginate": {
+                        "previous": "Trước",
+                        "next": "Sau",
+                        "first": "Đầu",
+                        "last": "Cuối"
+                    }
+                }
+            });
+        }
+
+        // Khởi tạo Bootstrap Tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('.btn-action-icon, [data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, { trigger: 'hover' });
+        });
+
+        // Đăng ký tự động cập nhật màu sắc & số lượng cho tất cả Modal Phân Quyền
+        var permModals = document.querySelectorAll('.modal');
+        permModals.forEach(function(modal) {
+            modal.addEventListener('change', function(e) {
+                if (e.target.classList.contains('perm-checkbox')) {
+                    updateTabColors(modal);
+                }
+            });
+
+            modal.addEventListener('shown.bs.modal', function() {
+                updateTabColors(modal);
+            });
+        });
+    });
+
+    // 6. Cập nhật màu nổi bật Card & Badge/Icon Sidebar menu bên trái (CAM)
+    function updateTabColors(modalEl) {
+        if (!modalEl) return;
+        
+        // A. Cập nhật màu sắc Card của các ô quyền được tích
+        var allCheckboxes = modalEl.querySelectorAll('.perm-checkbox');
+        allCheckboxes.forEach(function(cb) {
+            var card = cb.closest('.perm-card-item');
+            if (card) {
+                if (cb.checked) {
+                    card.classList.add('is-checked');
+                } else {
+                    card.classList.remove('is-checked');
+                }
+            }
+        });
+
+        // B. Cập nhật Badge số lượng & Icon Sidebar menu bên trái
+        var tabPanes = modalEl.querySelectorAll('.tab-pane');
+        tabPanes.forEach(function(pane) {
+            var paneId = pane.id;
+            var btnId = paneId.replace('tab-content-', 'tab-btn-');
+            var btn = modalEl.querySelector('#' + btnId);
+            
+            if (!btn) return;
+
+            var total = pane.querySelectorAll('.perm-checkbox').length;
+            var checked = pane.querySelectorAll('.perm-checkbox:checked').length;
+            
+            var badge = btn.querySelector('.badge');
+            var icon = btn.querySelector('i');
+
+            if (checked > 0) {
+                btn.classList.add('has-active-perms');
+                if (badge) {
+                    badge.textContent = checked + '/' + total;
+                    badge.className = 'badge badge-orange rounded-pill fs-9'; 
+                }
+                if (icon) {
+                    icon.className = 'fa-solid fa-folder-check me-1 text-orange'; 
+                }
+            } else {
+                btn.classList.remove('has-active-perms');
+                if (badge) {
+                    badge.textContent = total;
+                    badge.className = 'badge bg-secondary rounded-pill fs-9';
+                }
+                if (icon) {
+                    icon.className = 'fa-solid fa-folder me-1 text-secondary';
+                }
+            }
+        });
+    }
+
+    // 7. Chọn tất cả / Bỏ chọn tất cả quyền trong Modal phân quyền
+    function toggleAllPerms(modalId, checkState) {
+        var modalEl = document.getElementById(modalId);
+        if (modalEl) {
+            var checkboxes = modalEl.querySelectorAll('.perm-checkbox');
+            checkboxes.forEach(function(cb) {
+                cb.checked = checkState;
+            });
+            updateTabColors(modalEl);
+        }
+    }
+
+    // 8. Đếm số lượng checkbox đang chọn trong Modal Quản lý nhóm
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.bulk-perm-cb:checked');
+        const countSpan = document.getElementById('selectedCount');
+        if (countSpan) countSpan.textContent = checkboxes.length;
+    }
+
+    // 9. Chọn/bỏ chọn tất cả quyền hàng loạt trong Modal Quản lý nhóm
+    function toggleBulkSelect(source) {
+        const visibleRows = document.querySelectorAll('#tableManageGroups tbody tr.perm-row');
+        visibleRows.forEach(row => {
+            if (row.style.display !== 'none') {
+                const cb = row.querySelector('.bulk-perm-cb');
+                if (cb) cb.checked = source.checked;
+            }
+        });
+        updateSelectedCount();
+    }
+
+    // 10. Lọc danh sách quyền theo từ khóa & nhóm trong Modal Quản lý nhóm
+    function filterPermissionsTable() {
+        const searchValue = document.getElementById('filterPermSearch').value.toLowerCase();
+        const selectedGroup = document.getElementById('filterGroupSelect').value.toLowerCase();
+        const rows = document.querySelectorAll('#tableManageGroups tbody tr.perm-row');
+
+        rows.forEach(row => {
+            const name = row.querySelector('.perm-name').textContent.toLowerCase();
+            const code = row.querySelector('.perm-code').textContent.toLowerCase();
+            const group = row.querySelector('.perm-group').textContent.toLowerCase().trim();
+
+            const matchesSearch = name.includes(searchValue) || code.includes(searchValue);
+            const matchesGroup = !selectedGroup || group === selectedGroup;
+
+            row.style.display = (matchesSearch && matchesGroup) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,343 @@
+{% extends 'xettuyen/base.html' %}
+{% block page_icon %}fa-solid fa-print{% endblock %}
+{% block page_title %}Quản lý in giấy báo trúng tuyển{% endblock %}
+{% block page_subtitle %}In giấy báo thí sinh trúng tuyển{% endblock %}
+{% block breadcrumb %}Giấy báo trúng tuyển{% endblock %}
+
+{% block content %}
+<style>
+    /* CSS Icon tròn hỏi đáp modal */
+    .confirm-icon-circle {
+        width: 90px;
+        height: 90px;
+        border: 4px solid #7cb9d9;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #599cb5;
+        font-size: 45px;
+        font-weight: 300;
+    }
+</style>
+
+<div class="card-box">
+    <!-- TIÊU ĐỀ TRANG TÍCH HỢP NÚT TÁC VỤ (BỐ TRÍ MỚI GỌN ĐẸP) -->
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <h4 class="fw-bold text-uppercase mb-0 text-primary">
+            <i class="fa-solid fa-print me-2"></i>DANH SÁCH IN GIẤY BÁO TRÚNG TUYỂN
+        </h4>
+        <button type="button" class="btn btn-danger btn-sm fw-bold px-3 py-2 shadow-sm rounded-3" onclick="openConfirmModal()">
+            <i class="fa-solid fa-file-pdf me-1"></i> Xuất tất cả giấy báo TT (PDF ZIP)
+        </button>
+    </div>
+
+    <!-- KHỐI THỐNG KÊ SỐ LƯỢNG -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card bg-primary text-white shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">TỔNG TRÚNG TUYỂN</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.total|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-users fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card bg-info text-white shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">PHƯƠNG THỨC THPT</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.thpt|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-graduation-cap fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card bg-warning text-dark shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-dark-50 fw-bold">PHƯƠNG THỨC V-SAT</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.vsat|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-award fa-2x text-black-50"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card bg-success text-white shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-white-50 fw-bold">PHƯƠNG THỨC ĐGNL</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.dgnl|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-chart-line fa-2x text-white-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHỐI CẤU HÌNH THỜI GIAN TRA CỨU GIẤY BÁO -->
+    <div class="card shadow-sm mb-4 border-0 rounded-3 bg-light">
+        <div class="card-body p-3">
+            <h6 class="fw-bold text-primary mb-3">
+                <i class="fa-solid fa-clock me-2"></i>CẤU HÌNH THỜI GIAN TRA CỨU GIẤY BÁO
+            </h6>
+            <form method="POST" action="{% url 'luu_cau_hinh_giay_bao' %}" class="row g-3 align-items-end">
+                {% csrf_token %}
+                
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-semibold text-secondary small mb-1">Thời gian bắt đầu:</label>
+                    <input type="datetime-local" name="ngay_bat_dau" class="form-control" 
+                           value="{{ cau_hinh.ngay_bat_dau|date:'Y-m-d\TH:i' }}">
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-semibold text-secondary small mb-1">Thời gian kết thúc:</label>
+                    <input type="datetime-local" name="ngay_ket_thuc" class="form-control" 
+                           value="{{ cau_hinh.ngay_ket_thuc|date:'Y-m-d\TH:i' }}">
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <label class="form-label fw-semibold text-secondary small mb-1">Trạng thái tra cứu:</label>
+                    <div class="input-group">
+                        <div class="input-group-text bg-white border-end-0 ps-3 pe-2">
+                            <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                                <input class="form-check-input m-0" type="checkbox" role="switch" id="cho_phep_xem" name="cho_phep_xem" 
+                                       style="cursor: pointer; width: 2.2em; height: 1.2em;" 
+                                       {% if cau_hinh.cho_phep_xem %}checked{% endif %}
+                                       onchange="updateSwitchText(this)">
+                            </div>
+                        </div>
+                        <input type="text" id="statusLabel" 
+                               class="form-control bg-white border-start-0 fw-bold {% if cau_hinh.cho_phep_xem %}text-success{% else %}text-danger{% endif %}" 
+                               value="{% if cau_hinh.cho_phep_xem %}Cho phép xem giấy báo{% else %}Tắt tra cứu giấy báo{% endif %}" 
+                               readonly style="cursor: pointer;" onclick="document.getElementById('cho_phep_xem').click()">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <button type="submit" class="btn btn-success fw-bold w-100" style="height: 38px;">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Lưu cấu hình
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- BẢNG HIỂN THỊ DỮ LIỆU DATATABLES -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
+            <thead>
+                <tr>
+                    <th class="text-uppercase text-center">STT</th>
+                    <th class="text-uppercase text-center">CCCD/ĐDCN</th>
+                    <th class="text-uppercase text-center">Họ tên</th>
+                    <th class="text-uppercase text-center">CTĐT</th>
+                    <th class="text-uppercase text-center">PTXT</th>
+                    <th class="text-uppercase text-center">Điểm TC0</th>
+                    <th class="text-uppercase text-center">Điểm QĐ</th>
+                    <th class="text-uppercase text-center">Điểm Chuẩn</th>
+                    <th class="text-uppercase text-center" style="min-width: 200px;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+    {% for ts in danh_sach %}
+    <tr>
+        <td class="text-center fw-bold">{{ forloop.counter }}</td>
+        <td class="fw-bold text-success">{% if ts.cccd %}{{ ts.cccd }}{% else %}{{ ts.ma_dkxt }}{% endif %}</td>
+        <td class="fw-bold">{{ ts.ho_ten }}</td>
+        <td><span class="badge bg-primary">{{ ts.ctdt }}</span></td>
+        <td class="text-center"><span class="badge bg-info text-dark">{{ ts.ptxt }}</span></td>
+        <td class="fw-bold text-secondary text-center">{{ ts.dtc0|default:"" }}</td>
+		<td class="fw-bold text-danger text-center">{{ ts.pt2_qd|default:"" }}</td>
+		<td class="fw-bold text-success text-center">{{ ts.dc|default:"" }}</td>
+        <td class="text-center">
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{% url 'in_giay_bao' ts.cccd|default:ts.ma_dkxt %}?preview=1" 
+                   target="_blank" 
+                   class="btn btn-sm btn-info text-white rounded" 
+                   title="Xem trước PDF">
+                    <i class="fa-solid fa-eye me-1"></i> Xem trước
+                </a>
+
+                <a href="{% url 'in_giay_bao' ts.cccd|default:ts.ma_dkxt %}" 
+                   class="btn btn-sm btn-primary rounded" 
+                   title="Tải về file Word">
+                    <i class="fa-solid fa-file-word me-1"></i> Tải Word
+                </a>
+            </div>
+        </td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu thí sinh trong mẫu in giấy báo.</td>
+    </tr>
+    {% endfor %}
+</tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL HỘP THOẠI XÁC NHẬN -->
+<div class="modal fade" id="confirmExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4 p-3">
+            <div class="modal-body text-center py-4">
+                <div class="confirm-icon-circle mb-4 mx-auto">?</div>
+                
+                <h3 class="fw-bold mb-3 text-dark">Xuất tất cả giấy báo trúng tuyển?</h3>
+                <p class="text-secondary fs-6 mb-4 px-3" style="line-height: 1.5;">
+                    Hệ thống sẽ tiến hành khởi tạo và nén toàn bộ giấy báo trúng tuyển dạng file ZIP PDF cho tất cả thí sinh!
+                </p>
+
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-success px-4 py-2 fw-bold rounded-3" onclick="confirmAndStartExport()">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Đồng ý xuất PDF
+                    </button>
+                    <button type="button" class="btn btn-secondary px-4 py-2 fw-bold rounded-3" data-bs-dismiss="modal" data-dismiss="modal">
+                        Hủy bỏ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HIỂN THỊ TIẾN TRÌNH XUẤT HÀNG LOẠT -->
+<div class="modal fade" id="exportProgressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-primary"><i class="fa-solid fa-gear fa-spin me-2"></i>Đang xuất PDF hàng loạt</h5>
+            </div>
+            <div class="modal-body py-4">
+                <div class="progress mb-3" style="height: 22px; border-radius: 11px;">
+                    <div id="batchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success fw-bold" style="width: 0%;">0%</div>
+                </div>
+                <div class="d-flex justify-content-between text-muted small fw-semibold">
+                    <span id="batchStatusText">Đang khởi tạo tiến trình...</span>
+                    <span id="batchCountText">0 / 0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateSwitchText(checkbox) {
+    const label = document.getElementById('statusLabel');
+    if (checkbox.checked) {
+        label.value = "Cho phép xem giấy báo";
+        label.className = "form-control bg-white border-start-0 fw-bold text-success";
+    } else {
+        label.value = "Tắt tra cứu giấy báo";
+        label.className = "form-control bg-white border-start-0 fw-bold text-danger";
+    }
+}
+
+let pollInterval = null;
+let confirmModalObj = null;
+
+function openConfirmModal() {
+    const modalElement = document.getElementById('confirmExportModal');
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        confirmModalObj = new bootstrap.Modal(modalElement);
+        confirmModalObj.show();
+    } else {
+        $('#confirmExportModal').modal('show');
+    }
+}
+
+function confirmAndStartExport() {
+    if (confirmModalObj) {
+        confirmModalObj.hide();
+    } else {
+        $('#confirmExportModal').modal('hide');
+    }
+
+    startBatchExport();
+}
+
+function startBatchExport() {
+    const modalElement = document.getElementById('exportProgressModal');
+    let progressModal = null;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        progressModal = new bootstrap.Modal(modalElement);
+        progressModal.show();
+    } else {
+        $('#exportProgressModal').modal('show');
+    }
+
+    document.getElementById('batchProgressBar').style.width = '0%';
+    document.getElementById('batchProgressBar').innerText = '0%';
+    document.getElementById('batchStatusText').innerText = 'Đang khởi chạy đa luồng...';
+    document.getElementById('batchCountText').innerText = '0 / 0';
+
+    fetch("{% url 'start_export_all_pdf' %}")
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                if (progressModal) progressModal.hide(); else $('#exportProgressModal').modal('hide');
+                return;
+            }
+            trackProgress(data.task_id, progressModal);
+        })
+        .catch(err => {
+            alert('Có lỗi xảy ra khi bắt đầu tiến trình xuất PDF!');
+            if (progressModal) progressModal.hide(); else $('#exportProgressModal').modal('hide');
+        });
+}
+
+function trackProgress(taskId, progressModal) {
+    pollInterval = setInterval(() => {
+        fetch(`/export-all-pdf/status/${taskId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    clearInterval(pollInterval);
+                    alert('Lỗi xuất file: ' + (data.message || 'Không thể xuất PDF'));
+                    if (progressModal) progressModal.hide(); else $('#exportProgressModal').modal('hide');
+                    return;
+                }
+
+                const current = data.current || 0;
+                const total = data.total || 0;
+                const percent = data.percent || 0;
+
+                const progressBar = document.getElementById('batchProgressBar');
+                const countText = document.getElementById('batchCountText');
+                const statusText = document.getElementById('batchStatusText');
+
+                if (progressBar) {
+                    progressBar.style.width = percent + '%';
+                    progressBar.innerText = percent + '%';
+                }
+                if (countText) {
+                    countText.innerText = `${current} / ${total}`;
+                }
+                if (statusText) {
+                    statusText.innerText = percent < 40 
+                        ? 'Đang khởi tạo file mẫu Docx...' 
+                        : (percent < 90 ? 'Đang biên dịch PDF bằng MS Word...' : 'Đang nén file ZIP...');
+                }
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    window.location.href = `/export-all-pdf/download/${taskId}/`;
+                    setTimeout(() => {
+                        if (progressModal) progressModal.hide(); else $('#exportProgressModal').modal('hide');
+                    }, 1000);
+                }
+            })
+            .catch(err => {
+                console.error("Lỗi kết nối API progress:", err);
+            });
+    }, 500);
+}
+</script>
+{% endblock %}

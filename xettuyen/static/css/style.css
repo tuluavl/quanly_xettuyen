@@ -1,0 +1,337 @@
+body { 
+    background-color: #f0f2f5; 
+    font-family: 'Nunito', sans-serif; 
+    color: #2b2b2b; 
+    padding-bottom: 50px; 
+}
+
+.main-wrapper { 
+    max-width: 1240px; 
+    margin: 20px auto; 
+    background: #fff; 
+    border-radius: 16px; 
+    overflow: hidden; 
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06); 
+}
+
+/* HEADER BANNER CHUẨN MẪU UEH */
+.ueh-header {
+    background: linear-gradient(135deg, #005f60 0%, #007a8a 100%);
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Đảm bảo chữ, logo và nút bấm luôn nổi lên trên dải sóng */
+.ueh-header > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Dải sóng SVG chuẩn mẫu */
+.ueh-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 100"><path d="M0,0 C150,100 350,0 500,50 C650,100 850,0 1000,50 L1000,0 Z" fill="rgba(255,255,255,0.1)"/></svg>') no-repeat center bottom;
+    background-size: cover;
+    pointer-events: none;
+}
+.btn-logout { 
+    position: absolute; 
+    top: 18px; 
+    right: 18px; 
+    background: rgba(255, 255, 255, 0.2); 
+    color: #fff; 
+    border: 1px solid rgba(255, 255, 255, 0.4); 
+    padding: 6px 16px; 
+    border-radius: 20px; 
+    font-size: 0.82rem; 
+    font-weight: 700; 
+    text-decoration: none; 
+    transition: 0.2s; 
+}
+
+.btn-logout:hover { 
+    background: #dc3545; 
+    color: #fff; 
+    border-color: #dc3545; 
+}
+
+.ueh-logo { 
+    width: 85px; 
+    height: 85px; 
+    background: #fff; 
+    border-radius: 50%; 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    margin-bottom: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    padding: 8px;
+}
+
+.ueh-logo img { 
+    max-width: 100%; 
+    max-height: 100%; 
+    object-fit: contain; 
+}
+
+.ueh-header h6 { 
+    font-size: 0.95rem; 
+    letter-spacing: 0.5px; 
+    margin-bottom: 4px; 
+    font-weight: 700; 
+}
+
+.ueh-header h3 { 
+    color: #ff6b35; 
+    font-weight: 900; 
+    font-size: 1.6rem; 
+    margin: 10px 0; 
+    text-transform: uppercase; 
+    line-height: 1.3; 
+}
+
+.location-badge { 
+    display: inline-flex; 
+    align-items: center; 
+    background: rgba(255, 255, 255, 0.15); 
+    padding: 5px 16px; 
+    border-radius: 20px; 
+    font-size: 0.85rem; 
+    font-weight: 600; 
+}
+
+.badge-ksv { 
+    background-color: #ff6b35; 
+    color: white; 
+    padding: 2px 8px; 
+    border-radius: 10px; 
+    font-weight: 800; 
+    font-size: 0.75rem; 
+    margin-left: 6px; 
+}
+
+/* SECTION THÔNG TIN */
+.section-box { 
+    background: #fff; 
+    border-radius: 12px; 
+    margin: 24px; 
+    border: 1px solid #e9ecef; 
+    overflow: hidden; 
+}
+
+.section-header-teal { 
+    background-color: #005f60; 
+    color: white; 
+    padding: 12px 20px; 
+    font-weight: 800; 
+    font-size: 0.95rem; 
+}
+
+.section-title-bold { 
+    font-weight: 800; 
+    color: #005f60; 
+    font-size: 1.1rem; 
+    margin-bottom: 16px; 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+}
+
+.info-row { 
+    display: flex; 
+    margin-bottom: 10px; 
+    font-size: 0.93rem; 
+    align-items: center; 
+}
+
+.info-label { 
+    width: 220px; 
+    font-weight: 700; 
+    color: #495057; 
+    flex-shrink: 0; 
+}
+
+.info-value { 
+    flex: 1; 
+    font-weight: 600; 
+    color: #212529; 
+}
+
+.info-value.highlight { 
+    font-weight: 800; 
+    color: #000; 
+}
+
+.link-click { 
+    color: #0d6efd; 
+    text-decoration: underline; 
+    font-weight: 700; 
+    cursor: pointer; 
+}
+
+/* KHUNG NGUYỆN VỌNG */
+.nv-section-container { 
+    padding: 0 24px 30px 24px; 
+}
+
+.section-main-heading {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #005f60;
+    margin-bottom: 8px;
+}
+
+.orange-line-divider {
+    height: 2px;
+    background-color: #f26522;
+    width: 100%;
+    margin-bottom: 14px;
+}
+
+.section-subtext {
+    color: #555;
+    font-size: 0.87rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.nv-card-outer {
+    background-color: #f2f5f4;
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.badge-code-pill {
+    background-color: #005f60;
+    color: white;
+    font-weight: 800;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    display: inline-block;
+    margin-bottom: 10px;
+}
+
+.program-title {
+    color: #005f60;
+    font-weight: 800;
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+}
+
+.program-meta {
+    color: #555;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+/* THẺ ĐIỂM 3 CỘT */
+.score-card-col {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 18px 16px;
+    border-left: 4px solid #005f60;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header-title {
+    color: #005f60;
+    font-weight: 800;
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.score-pill-item {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #eef2f1;
+    font-size: 0.9rem;
+}
+
+.score-pill-item.pill-orange-left {
+    border-left: 3px solid #f26522;
+    margin-top: 4px;
+}
+
+.score-pill-item .pill-label {
+    color: #4a5568;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.score-pill-item .pill-val {
+    font-weight: 800;
+    color: #005f60;
+    font-size: 1rem;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.result-display-box {
+    background: #ffffff;
+    border: 1px solid #eef2f1;
+    border-radius: 10px;
+    padding: 18px 12px;
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.result-display-box label {
+    display: block;
+    font-size: 0.75rem;
+    color: #718096;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.result-display-box .val-amber {
+    font-size: 1.95rem;
+    font-weight: 900;
+    color: #f59e0b;
+    line-height: 1;
+}
+
+.result-display-box .val-teal {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #005f60;
+    line-height: 1;
+}
+
+.btn-status-green {
+    background-color: #137947;
+    color: white;
+    font-weight: 800;
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    border: none;
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px; /* Nằm ngay sát dưới ô Điểm chuẩn */
+}

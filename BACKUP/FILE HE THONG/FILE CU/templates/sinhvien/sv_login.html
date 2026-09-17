@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống tra cứu kết quả xét tuyển</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .main-container {
+            width: 100%;
+            max-width: 750px;
+            text-align: center;
+        }
+        .header-title h6 {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #212529;
+            margin-bottom: 2px;
+        }
+        .header-title h4 {
+            font-weight: 800;
+            color: #0b2e13;
+            text-transform: uppercase;
+            margin-bottom: 25px;
+            position: relative;
+            display: inline-block;
+        }
+        .header-title h4::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 3px;
+            background-color: #0b2e13;
+            margin: 8px auto 0;
+        }
+        .system-title {
+            color: #00563b;
+            font-weight: 700;
+            margin-bottom: 25px;
+        }
+        .system-title h5 {
+            font-weight: 800;
+            font-size: 1.25rem;
+            margin-bottom: 5px;
+        }
+        .login-card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 40px 35px;
+            margin-top: 15px;
+        }
+        .login-card h5 {
+            font-weight: 700;
+            color: #212529;
+            margin-bottom: 25px;
+            letter-spacing: 0.5px;
+        }
+        .input-group-text {
+            background-color: #fff;
+            border-left: 1px solid #ced4da;
+            color: #6c757d;
+        }
+        .form-control {
+            border-right: none;
+            padding: 12px 15px;
+            font-size: 0.95rem;
+        }
+        .form-control:focus {
+            box-shadow: none;
+            border-color: #ced4da;
+        }
+        .form-control:focus + .input-group-text {
+            border-color: #ced4da;
+        }
+        .info-alert {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+            font-size: 0.88rem;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 20px;
+            margin-bottom: 25px;
+        }
+        .btn-submit {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: #fff;
+            font-weight: 600;
+            padding: 10px 35px;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        .btn-submit:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <!-- Tiêu đề Trường -->
+    <div class="header-title">
+        <h6>BỘ GIÁO DỤC VÀ ĐÀO TẠO</h6>
+        <h4>ĐẠI HỌC KINH TẾ THÀNH PHỐ HỒ CHÍ MINH</h4>
+    </div>
+
+    <!-- Tên Hệ Thống -->
+    <div class="system-title">
+        <h5>HỆ THỐNG TRA CỨU KẾT QUẢ XÉT TUYỂN BỔ SUNG</h5>
+        <div class="fw-bold">KHÓA 52 - ĐẠI HỌC CHÍNH QUY, NĂM 2026 (Mã trường KSV)</div>
+    </div>
+
+    <!-- Form Đăng Nhập -->
+    <div class="login-card">
+        <h5>ĐĂNG NHẬP HỆ THỐNG</h5>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger py-2 small mb-3 text-start">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" action="">
+            {% csrf_token %}
+            <!-- Ô nhập 1: Mã hồ sơ / SBD / CCCD -->
+            <div class="input-group mb-3">
+                <input type="text" name="identifier" class="form-control" placeholder="Mã hồ sơ/SBD thi THPT/CCCD" required>
+                <span class="input-group-text"><i class="fa-regular fa-id-card"></i></span>
+            </div>
+
+            <!-- Ô nhập 2: CCCD hoặc Mật khẩu -->
+            <div class="input-group mb-3">
+                <input type="password" name="password" class="form-control" placeholder="Số CCCD hoặc Mật khẩu hệ thống" required>
+                <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+            </div>
+
+            <!-- Khung hướng dẫn màu xanh -->
+            <div class="info-alert">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                Thí sinh <strong>không có Mã hồ sơ và không có Số báo danh</strong>: nhập số <strong>CCCD vào cả hai ô</strong> (Hoặc dùng mật khẩu đã nhận qua Email).
+            </div>
+
+            <!-- Nút Đăng nhập -->
+            <button type="submit" class="btn btn-submit">Đăng nhập</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

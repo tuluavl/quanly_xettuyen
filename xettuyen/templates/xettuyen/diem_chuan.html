@@ -1,0 +1,245 @@
+{% extends 'xettuyen/base.html' %}
+
+{% block page_icon %}fa-solid fa-chart-line{% endblock %}
+{% block page_title %}Quản lý điểm chuẩn{% endblock %}
+{% block page_subtitle %}Tính toán điểm trúng tuyển và thống kê số lượng nguyện vọng{% endblock %}
+{% block breadcrumb %}Điểm Chuẩn{% endblock %}
+
+{% block content %}
+
+
+<div class="card-box">
+    <!-- DASHBOARD THỐNG KÊ TỔNG QUAN (PHONG CÁCH SOLID CARDS) -->
+	<h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">QUẢN LÝ ĐIỂM CHUẨN</h4>
+    <div class="row g-3 mb-4">
+        <!-- 1. TỔNG CHỈ TIÊU -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-white shadow-sm p-3 h-100" style="background-color: #0d6efd;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-white-50" style="font-size: 0.72rem; letter-spacing: 0.5px;">Tổng chỉ tiêu</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ tong_chi_tieu }}</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. TỔNG TRÚNG TUYỂN -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-white shadow-sm p-3 h-100" style="background-color: #198754;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-white-50" style="font-size: 0.72rem; letter-spacing: 0.5px;">Tổng số trúng tuyển</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ tong_trung_tuyen }}</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. TỶ LỆ VƯỢT -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-white shadow-sm p-3 h-100" style="background-color: #dc3545;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-white-50" style="font-size: 0.72rem; letter-spacing: 0.5px;">Tỷ lệ/Chỉ tiêu</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ ty_le_vuot }}%</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. TRÚNG TUYỂN NV1 -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-white shadow-sm p-3 h-100" style="background-color: #0dcaf0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-white-50" style="font-size: 0.72rem; letter-spacing: 0.5px;">Trúng tuyển NV1</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ tong_nv1 }}</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-graduation-cap"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. TRÚNG TUYỂN NV2 -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-dark shadow-sm p-3 h-100" style="background-color: #ffc107;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold opacity-75" style="font-size: 0.72rem; letter-spacing: 0.5px;">Trúng tuyển NV2</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ tong_nv2 }}</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-award"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. TRÚNG TUYỂN NV3 -->
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card border-0 rounded-3 text-white shadow-sm p-3 h-100" style="background-color: #6c757d;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-uppercase fw-bold text-white-50" style="font-size: 0.72rem; letter-spacing: 0.5px;">Trúng tuyển NV3</div>
+                        <div class="fs-2 fw-bold mt-1 mb-0">{{ tong_nv3 }}</div>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fa-solid fa-certificate"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NÚT THAO TÁC VÀ BẢNG DỮ LIỆU -->
+    <form id="form-diem-chuan" method="POST" action="{% url 'diem_chuan' %}">
+        {% csrf_token %}
+        <div class="d-flex gap-2 mb-3">
+            <button type="submit" name="action" value="save" class="btn btn-custom-green btn-sm fw-bold px-3 py-1">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Lưu điểm
+            </button>
+            <button type="button" 
+                    id="btn-tinh-dau-rot" 
+                    class="btn btn-custom-green btn-sm fw-bold px-3 py-1">
+                <i class="fa-solid fa-calculator me-1"></i> Tính đậu rớt
+            </button>
+            <button type="button" 
+                    id="btn-dong-bo" 
+                    class="btn btn-primary btn-sm fw-bold px-3 py-1">
+                <i class="fa-solid fa-database me-1"></i> Đồng bộ danh sách trúng tuyển
+            </button>
+            
+            <a href="{% url 'export_diem_chuan' %}" 
+               class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1"
+               onclick="thongBaoXuatExcel()">
+                <i class="fa-solid fa-file-export me-1"></i> Xuất điểm chuẩn
+            </a>			
+        </div>
+
+        <!-- Bảng dữ liệu lọc ảo -->
+        <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
+            <thead>
+                <tr>
+                    <th class="text-center">STT</th>
+                    <th>Mã xét tuyển</th>
+                    <th>Tên ngành</th>
+                    <th class="text-center">Chỉ tiêu</th>
+                    <th class="text-center" style="width: 90px;">Điểm đậu</th>
+                    <th class="text-center">Trúng tuyển</th>
+                    <th class="text-center">Tỷ lệ(%)</th>
+                    <th class="text-center">NV1</th>
+                    <th class="text-center">NV2</th>
+                    <th class="text-center">NV3</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in danh_sach_nganh %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>{{ item.ma_xet_tuyen_moi|default:item.ma_xet_tuyen_moi }}</td>
+                        <td>{{ item.ten_ma_xet_tuyen }}</td>
+                        <td class="text-center fw-bold">{{ item.chi_tieu_chung|default:0 }}</td>
+                        <td class="text-center">
+                            <input type="number" 
+                                   step="0.01" 
+                                   name="diem_dau_{{ item.ma_xet_tuyen_moi }}" 
+                                   class="form-control form-control-sm text-center px-1 fw-bold" 
+                                   value="{{ item.diem_chuan|default:60 }}" 
+                                   style="max-width: 80px; margin: 0 auto;">
+                        </td>
+                        <td class="text-center text-success fw-bold">{{ item.sl_tt|default:0 }}</td>
+                        <td class="text-center text-danger">{{ item.ti_le_tt_ct|default:0 }}</td>
+                        <td class="text-center">{{ item.nv1|default:0 }}</td>
+                        <td class="text-center">{{ item.nv2|default:0 }}</td>
+                        <td class="text-center">{{ item.nv3|default:0 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">Chưa có dữ liệu trong bảng lọc ảo</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<!-- THƯ VIỆN SWEETALERT2 VÀ KỊCH BẢN XỬ LÝ NÚT THAO TÁC -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let form = document.getElementById('form-diem-chuan');
+
+    // Xử lý nút "Tính đậu rớt"
+    document.getElementById('btn-tinh-dau-rot').addEventListener('click', function() {
+        Swal.fire({
+            title: 'Tính toán kết quả xét tuyển?',
+            text: "Hệ thống sẽ tiến hành lọc ảo và tính toán trạng thái đậu/rớt cho toàn bộ thí sinh theo điểm chuẩn mới!",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fa-solid fa-calculator me-1"></i> Đồng ý tính toán',
+            cancelButtonText: 'Hủy bỏ',
+            customClass: {
+                popup: 'rounded-4 shadow',
+                confirmButton: 'btn btn-success px-3 py-2 me-2',
+                cancelButton: 'btn btn-secondary px-3 py-2'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                let hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'action';
+                hiddenInput.value = 'calculate';
+                form.appendChild(hiddenInput);
+                
+                form.submit();
+            }
+        });
+    });
+
+    // Xử lý nút "Đồng bộ danh sách trúng tuyển"
+    document.getElementById('btn-dong-bo').addEventListener('click', function() {
+        Swal.fire({
+            title: 'Xác nhận đồng bộ?',
+            text: "Bạn có chắc chắn muốn chuyển dữ liệu kết quả vào bảng trúng tuyển chính thức không?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fa-solid fa-check me-1"></i> Đồng ý',
+            cancelButtonText: 'Hủy bỏ',
+            customClass: {
+                popup: 'rounded-4 shadow',
+                confirmButton: 'btn btn-primary px-3 py-2 me-2',
+                cancelButton: 'btn btn-secondary px-3 py-2'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                let hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'action';
+                hiddenInput.value = 'import_3_tables';
+                form.appendChild(hiddenInput);
+                
+                form.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

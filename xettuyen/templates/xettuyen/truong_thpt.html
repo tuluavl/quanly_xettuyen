@@ -1,0 +1,236 @@
+{% extends 'xettuyen/base.html' %}
+
+<!-- Khai báo Tiêu đề động -->
+{% block page_icon %}fa-solid fa-school{% endblock %}
+{% block page_title %}Danh sách Trường THPT{% endblock %}
+{% block page_subtitle %}Quản lý và tra cứu mã trường, mã tỉnh, khu vực ưu tiên trường THPT{% endblock %}
+{% block breadcrumb %}Danh Sách Trường THPT{% endblock %}
+
+{% block content %}
+<style>
+    #tableTruongTHPT thead th {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }   
+</style>
+
+<div class="card-box">
+    <h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">DANH SÁCH TRƯỜNG THPT</h4>
+
+    <div class="fw-bold mb-3">Tổng số trường: {{ total_count|default:0 }}</div>
+
+    <!-- Cụm nút bấm công cụ (Phân quyền) -->
+    <div class="d-flex gap-2 mb-3">
+        {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'import_truong_thpt' in request.session.permissions %}
+            <button type="button" class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="fas fa-file-import me-1"></i>Import dữ liệu
+            </button>
+        {% endif %}
+
+        {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'export_truong_thpt' in request.session.permissions %}
+            <a href="{% url 'xuat_excel_truong_thpt' %}" 
+               class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1"
+               onclick="thongBaoXuatExcel()">
+                <i class="fas fa-file-excel me-1"></i> Xuất danh sách trường
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Bảng dữ liệu chuẩn (8 cột) -->
+    <div class="table-responsive">
+        <table id="tableTruongTHPT" class="table table-bordered table-striped nowrap align-middle w-100">
+            <thead class="text-center">
+                <tr>
+                    <th width="50">STT</th>
+                    <th>Mã ghép</th>
+                    <th width="90">Mã Tỉnh</th>
+                    <th width="90">Mã Trường</th>
+                    <th>Tên Trường THPT</th>
+                    <th>Địa Chỉ / Tỉnh Thành</th>
+                    <th width="100">Khu Vực</th>
+                    <th width="100">Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Dữ liệu sẽ do DataTables Server-side render tự động -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL SỬA TRƯỜNG THPT DÙNG CHUNG -->
+<div class="modal fade" id="modalEditTruongTHPT" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="formEditTruongTHPT" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Sửa Thông Tin Trường THPT</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start" style="font-size: 14px;">
+                    <div class="row g-3">
+                        <!-- Thêm ô nhập Mã Trường Ghép -->
+                        <!-- Ô Mã Trường Ghép khóa chỉnh sửa (readonly) -->
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold mb-1">Mã Trường Ghép (Tự động):</label>
+                            <input type="text" name="ma_truong_ghep" class="form-control form-control-sm bg-light" readonly tabindex="-1">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1">Mã Tỉnh:</label>
+                            <input type="text" name="ma_tinh" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1">Mã Trường:</label>
+                            <input type="text" name="ma_truong" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold mb-1">Tên Trường THPT:</label>
+                            <input type="text" name="ten_truong" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1">Địa Chỉ / Tỉnh Thành:</label>
+                            <input type="text" name="dia_chi" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold mb-1">Khu Vực (KV):</label>
+                            <input type="text" name="khu_vuc" class="form-control form-control-sm" placeholder="VD: KV1, KV2-NT...">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL IMPORT EXCEL -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'danh_sach_truong_thpt' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-file-excel me-2"></i>Import Danh Sách Trường THPT</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Chọn file Excel (dạng <code>.xlsx</code>) chứa các cột: <strong>matinh, matruong, tentruong, khuvuc, diachi...</strong></p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn file Excel:</label>
+                        <input type="file" name="excel_file" class="form-control" accept=".xlsx, .xls" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-custom-green btn-sm fw-bold px-3"><i class="fas fa-upload me-1"></i> Tải lên & Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Hàm mở Modal và fill dữ liệu động khi bấm nút Sửa
+    function openEditModal(id, ma_truong_ghep, ma_tinh, ma_truong, ten_truong, khu_vuc, dia_chi) {
+        var $form = $('#formEditTruongTHPT');
+        
+        $form.attr('action', '/truong-thpt/sua/' + id + '/');
+        
+        // Đổ dữ liệu chính xác vào từng input
+        $form.find('input[name="ma_truong_ghep"]').val(ma_truong_ghep || '');
+        $form.find('input[name="ma_tinh"]').val(ma_tinh || '');
+        $form.find('input[name="ma_truong"]').val(ma_truong || '');
+        $form.find('input[name="ten_truong"]').val(ten_truong || '');
+        $form.find('input[name="khu_vuc"]').val(khu_vuc || '');
+        $form.find('input[name="dia_chi"]').val(dia_chi || '');
+        
+        var modal = new bootstrap.Modal(document.getElementById('modalEditTruongTHPT'));
+        modal.show();
+    }
+
+    window.addEventListener('load', function() {
+        if (typeof jQuery !== 'undefined' && $.fn.DataTable) {
+            $.fn.dataTable.ext.errMode = 'none';
+
+            if ($.fn.DataTable.isDataTable('#tableTruongTHPT')) {
+                $('#tableTruongTHPT').DataTable().destroy();
+            }
+
+            $('#tableTruongTHPT').DataTable({
+                "destroy": true,
+                "processing": true,
+                "serverSide": true,
+                "ajax": {
+                    "url": "{% url 'danh_sach_truong_thpt' %}",
+                    "type": "GET"
+                },
+                "columns": [
+                    { "data": "stt", "className": "text-center fw-bold" },
+                    { "data": "ma_truong_ghep", "className": "text-center fw-bold text-secondary" },
+                    { "data": "ma_tinh", "className": "text-center fw-bold text-secondary" },
+                    { "data": "ma_truong", "className": "text-center fw-bold text-primary" },
+                    { "data": "ten_truong", "className": "fw-semibold" },
+                    { 
+                        "data": "dia_chi",
+                        "render": function(data, type, row) {
+                            return data || row.ten_tinh || '';
+                        }
+                    },
+                    { 
+                        "data": "khu_vuc", 
+                        "className": "text-center",
+                        "render": function(data) {
+                            return data ? '<span class="badge bg-info text-dark">' + data + '</span>' : '';
+                        }
+                    },
+                    {
+                        "data": null,
+                        "className": "text-center",
+                        "orderable": false,
+                        "render": function(data, type, row) {
+                            var actions = '';
+                            
+                            {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'sua_truong_thpt' in request.session.permissions %}
+                            var safeTenTruong = (row.ten_truong || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            var safeDiaChi = (row.dia_chi || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            
+                            actions += '<button type="button" class="btn btn-warning btn-xs px-2 py-0 me-1" title="Sửa" ' +
+                                'onclick="openEditModal(' + row.id + ', \'' + (row.ma_truong_ghep || '') + '\', \'' + (row.ma_tinh || '') + '\', \'' + (row.ma_truong || '') + '\', \'' + safeTenTruong + '\', \'' + (row.khu_vuc || '') + '\', \'' + safeDiaChi + '\')">' +
+                                '<i class="fas fa-edit"></i></button>';
+                            {% endif %}
+                            
+                            {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_truong_thpt' in request.session.permissions %}
+                            actions += '<form method="POST" action="/truong-thpt/xoa/' + row.id + '/" class="d-inline" onsubmit="return confirm(\'Bạn có chắc chắn muốn xóa trường này?\');">' +
+                                '{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs px-2 py-0" title="Xóa"><i class="fas fa-trash-alt"></i></button></form>';
+                            {% endif %}
+                            
+                            return actions;
+                        }
+                    }
+                ],
+                "pageLength": 20,
+                "lengthMenu": [[20, 50, 100], [20, 50, 100]],
+                "language": {
+                    "lengthMenu": "Xem _MENU_ dòng trên một trang",
+                    "zeroRecords": "Không tìm thấy dữ liệu trường THPT phù hợp",
+                    "info": "Hiển thị _START_ đến _END_ trong tổng số _TOTAL_ dòng",
+                    "infoEmpty": "Hiển thị 0 đến 0 trong tổng số 0 dòng",
+                    "infoFiltered": "(lọc từ tổng số _MAX_ dòng)",
+                    "search": "Tìm kiếm:",
+                    "processing": "Đang tải dữ liệu...",
+                    "paginate": {
+                        "previous": "Trước",
+                        "next": "Tiếp"
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

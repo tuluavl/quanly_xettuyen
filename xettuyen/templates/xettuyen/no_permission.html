@@ -1,0 +1,39 @@
+{% extends 'xettuyen/base.html' %}
+
+{% block page_icon %}fa-solid fa-user-lock{% endblock %}
+{% block page_title %}Chưa được cấp quyền{% endblock %}
+{% block page_subtitle %}Thông báo phân quyền hệ thống{% endblock %}
+{% block breadcrumb %}Truy cập bị hạn chế{% endblock %}
+
+{% block content %}
+<div class="card-box text-center py-5 shadow-sm border-0">
+    <div class="mb-3">
+        <span class="badge bg-danger-subtle text-danger rounded-circle p-4" style="font-size: 3.5rem;">
+            <i class="fa-solid fa-user-shield"></i>
+        </span>
+    </div>
+    
+    <h3 class="fw-bold text-dark mb-2">Tài khoản chưa được phân quyền</h3>
+    
+    <p class="text-muted mx-auto mb-4" style="max-width: 520px; font-size: 15px;">
+        Xin chào <strong class="text-primary">{{ request.session.username }}</strong>, tài khoản của bạn hiện tại chưa được cấp quyền sử dụng bất kỳ chức năng nào trong hệ thống xét tuyển.
+    </p>
+
+    <div class="alert alert-warning border-warning d-inline-block text-start mb-4 px-4 py-3 shadow-sm" style="max-width: 550px; font-size: 14px;">
+        <div class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-2"></i>Hướng dẫn khắc phục:</div>
+        <ul class="mb-0 ps-3">
+            <li>Vui lòng liên hệ <strong>Quản trị viên (Admin)</strong> để kiểm tra và gán quyền/vai trò làm việc.</li>
+            <li>Nếu bạn vừa được cấp quyền, hãy thử bấm <strong>Tải lại trang</strong> hoặc đăng xuất rồi đăng nhập lại.</li>
+        </ul>
+    </div>
+
+    <div class="d-flex justify-content-center gap-2">
+        <button onclick="window.location.reload();" class="btn btn-primary fw-semibold px-4 py-2">
+            <i class="fa-solid fa-rotate-right me-1"></i> Tải lại trang
+        </button>
+        <a href="{% url 'logout' %}" class="btn btn-outline-danger fw-semibold px-4 py-2">
+            <i class="fa-solid fa-right-from-bracket me-1"></i> Đăng xuất
+        </a>
+    </div>
+</div>
+{% endblock %}

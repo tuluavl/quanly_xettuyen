@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Giấy Báo Trúng Tuyển - {{ ts.ho_ten }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* Cấu hình khổ giấy A4 */
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 14pt;
+            line-height: 1.5;
+        }
+        .page-a4 {
+            width: 100%;
+            background: white;
+        }
+        /* Ẩn nút bấm khi bật hộp thoại in */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- Nút thao tác -->
+    <div class="no-print mb-4 text-center">
+        <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> In giấy báo</button>
+        <button onclick="window.close()" class="btn btn-secondary">Đóng</button>
+    </div>
+
+    <!-- Nội dung Giấy Báo -->
+   <div class="ket-qua-xet-tuyen my-3">
+    <!-- 1. MẪU DÀNH CHO KỲ THI ĐÁNH GIÁ NĂNG LỰC (ĐGNL) -->
+    {% if ts.diem_thi_TT == 'DGNL' or ts.ky_thi == 'DGNL' %}
+        <p>- Điểm thi ĐGNL-HCM, năm 2026: <strong>{{ ts.pt2_dgnl }}</strong> điểm</p>
+
+    <!-- 2. MẪU DÀNH CHO KỲ THI TỐT NGHIỆP THPT -->
+    {% elif ts.diem_thi_TT == 'THPT' or ts.ky_thi == 'THPT' %}
+        <p>- Tổ hợp xét tuyển theo điểm thi tốt nghiệp THPT năm 2026: <strong>{{ ts.pt2_tn_thm }}</strong></p>
+
+        <p class="ps-3">
+            + Kết quả: 
+            {{ ts.pt2_tn_mamon1 }}: <strong>{{ ts.pt2_tn_diemmon1 }}</strong> &nbsp;&nbsp;&nbsp;
+            {{ ts.pt2_tn_mamon2 }}: <strong>{{ ts.pt2_tn_diemmon2 }}</strong> &nbsp;&nbsp;&nbsp;
+            {{ ts.pt2_tn_mamon3 }}: <strong>{{ ts.pt2_tn_diemmon3 }}</strong>
+        </p>
+
+    <!-- 3. MẪU DÀNH CHO KỲ THI V-SAT -->
+    {% elif ts.diem_thi_TT == 'VSAT' or ts.diem_thi_TT == 'V-SAT' or ts.ky_thi == 'VSAT' %}
+        <p>- Điểm thi đánh giá đầu vào Đại học (V-SAT), năm 2026:</p>
+        <p class="ps-3">+ Tổ hợp xét tuyển: <strong>{{ ts.pt2_vsat_thm }}</strong></p>
+
+        <p class="ps-3">
+            + Kết quả: 
+            {{ ts.pt2_vsat_mamon1 }}: <strong>{{ ts.pt2_vsat_diemmon1 }}</strong> &nbsp;&nbsp;&nbsp;
+            {{ ts.pt2_vsat_mamon2 }}: <strong>{{ ts.pt2_vsat_diemmon2 }}</strong> &nbsp;&nbsp;&nbsp;
+            {{ ts.pt2_vsat_mamon3 }}: <strong>{{ ts.pt2_vsat_diemmon3 }}</strong>
+        </p>
+    {% endif %}
+
+    <!-- ĐIỂM CHUNG DÙNG CHO CẢ 3 MẪU -->
+    <p>- Điểm trung bình các năm học THPT: <strong>{{ ts.pt2a_diemtbthpt }}</strong></p>
+    <p class="ps-3">+ Tổng điểm quy đổi: <strong>{{ ts.pt2_diemqd }}</strong> (chưa gồm điểm cộng nếu có).</p>
+    <p class="ps-3">+ Tổng điểm quy đổi xét tuyển: <strong>{{ ts.pt2_qd }}</strong> (gồm điểm cộng, ưu tiên KV, ĐT nếu có).</p>
+</div>
+
+</body>
+</html>
+
+
+
+

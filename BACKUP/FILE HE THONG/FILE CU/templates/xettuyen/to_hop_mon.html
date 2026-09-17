@@ -1,0 +1,182 @@
+{% extends 'xettuyen/base.html' %}
+
+<!-- Khai báo Tiêu đề động -->
+{% block page_icon %}fa-solid fa-layer-group{% endblock %}
+{% block page_title %}Danh sách tổ hợp môn{% endblock %}
+{% block page_subtitle %}Quản lý và tra cứu thông tin tổ hợp môn xét tuyển{% endblock %}
+{% block breadcrumb %}Danh Sách Tổ Hợp Môn{% endblock %}
+
+{% block content %}
+<style>
+	#tableToHopMon thead th {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }   
+</style>
+
+<div class="card-box">
+    <h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">DANH SÁCH TỔ HỢP MÔN CỦA THÍ SINH</h4>
+
+    <div class="fw-bold mb-3">Tổng số tổ hợp: {{ tong_so|default:0 }}</div>
+
+    <!-- Cụm nút bấm -->
+    <div class="d-flex gap-2 mb-3">
+        
+		{% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'import_to_hop_mon' in request.session.permissions %}
+    <button type="button" class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#importModal">
+        <i class="fas fa-file-import me-1"></i>Import dữ liệu
+    </button>
+	{% endif %}
+        		{% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'export_to_hop_mon' in request.session.permissions %}
+<a href="{% url 'xuat_excel_to_hop_mon' %}" 
+           class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1"
+           onclick="thongBaoXuatExcel()">
+            <i class="fas fa-file-excel me-1 mr-1"></i> Xuất danh sách tổ hợp
+        </a>
+			{% endif %}
+
+    </div>
+
+    <!-- Bảng dữ liệu chuẩn -->
+<div class="table-responsive">
+    <table id="tableToHopMon" class="table table-bordered table-striped nowrap" style="width:100%">
+        <thead class="text-center">
+            <tr>
+                <th width="100">Mã tổ hợp</th>
+                <th>Tên tổ hợp môn</th>
+                <th width="80">Môn 1</th>
+                <th width="80">Môn 2</th>
+                <th width="80">Môn 3</th>
+                <th width="100">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in danh_sach %}
+                <tr>
+                    <td class="text-center fw-bold text-primary">{{ row.ma_to_hop }}</td>
+                    <td>{{ row.ten_to_hop }}</td>
+                    <td class="text-center">{{ row.mon_1 }}</td>
+                    <td class="text-center">{{ row.mon_2 }}</td>
+                    <td class="text-center">{{ row.mon_3 }}</td>
+                    <td class="text-center">
+                        <!-- Nút Sửa: Kiểm tra quyền Admin hoặc edit_to_hop_mon -->
+                        {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'sua_to_hop_mon' in request.session.permissions %}
+                            <button type="button" class="btn btn-warning btn-xs px-2 py-0 me-1" title="Sửa" 
+                                    data-bs-toggle="modal" data-bs-target="#editModal{{ row.ma_to_hop }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        {% endif %}
+
+                        <!-- Nút Xóa: Kiểm tra quyền Admin hoặc delete_to_hop_mon -->
+                        {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_to_hop_mon' in request.session.permissions %}
+                            <form method="POST" action="{% url 'xoa_to_hop_mon' row.ma_to_hop %}" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tổ hợp {{ row.ma_to_hop }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-xs px-2 py-0" title="Xóa">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+
+<!-- Modal Sửa đặt ngoài bảng -->
+{% for row in danh_sach %}
+<div class="modal fade" id="editModal{{ row.ma_to_hop }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'sua_to_hop_mon' row.ma_to_hop %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2 mr-2"></i>Sửa tổ hợp môn {{ row.ma_to_hop }}</h5>
+                    <button type="button" class="close btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-start" style="font-size: 14px;">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">Mã tổ hợp môn:</label>
+                        <input type="text" class="form-control form-control-sm" value="{{ row.ma_to_hop }}" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">Tên tổ hợp môn:</label>
+                        <input type="text" name="ten_to_hop_mon" value="{{ row.ten_to_hop }}" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-1">Mã môn thi:</label>
+                        <input type="text" name="ma_mon_thi" value="{{ row.ma_mon_thi }}" class="form-control form-control-sm" placeholder="VD: TO, LI, HO" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1 mr-1"></i> Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Import Excel -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'import_to_hop_mon' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-excel me-2 mr-2"></i>Import Tổ Hợp Môn</h5>
+                    <button type="button" class="close btn-close" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Chọn file Excel (dạng <code>.xlsx</code>) chứa các cột: <strong>ma_to_hop_mon, ten_to_hop_mon, ma_mon_thi</strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn file Excel:</label>
+                        <input type="file" name="excel_file" class="form-control" accept=".xlsx, .xls" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-custom-green btn-sm fw-bold px-3"><i class="fas fa-upload me-1 mr-1"></i> Tải lên & Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.addEventListener('load', function() {
+        if (typeof jQuery !== 'undefined' && $.fn.DataTable) {
+            $.fn.dataTable.ext.errMode = 'none';
+
+            if ($.fn.DataTable.isDataTable('#tableToHopMon')) {
+                $('#tableToHopMon').DataTable().destroy();
+            }
+
+            $('#tableToHopMon').DataTable({
+                "destroy": true,
+                "paging": true,
+                "searching": true,
+                "lengthChange": true,
+                "pageLength": 20,
+                "lengthMenu": [[20, 25, 50, 100, -1], [20,25, 50, 100, "Tất cả"]],
+                "language": {
+                    "lengthMenu": "Xem _MENU_ dòng trên một trang",
+                    "zeroRecords": "Không tìm thấy dữ liệu tổ hợp môn phù hợp",
+                    "info": "Hiển thị _START_ đến _END_ trong tổng số _TOTAL_ dòng",
+                    "infoEmpty": "Hiển thị 0 đến 0 trong tổng số 0 dòng",
+                    "infoFiltered": "(lọc từ tổng số _MAX_ dòng)",
+                    "search": "Tìm kiếm:",
+                    "paginate": {
+                        "previous": "Trước",
+                        "next": "Tiếp"
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
