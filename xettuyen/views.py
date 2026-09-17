@@ -10,6 +10,9 @@ import tempfile
 import openpyxl
 import urllib.parse
 import pythoncom
+except ImportError:
+    pythoncom = None
+
 import unicodedata
 import threading
 import zipfile
