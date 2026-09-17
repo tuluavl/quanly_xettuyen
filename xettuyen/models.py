@@ -354,7 +354,14 @@ class MauImportGiayBao(models.Model):
 
     def __str__(self):
         return f"{self.ho_ten} - {self.cccd}"
+class ToHopMon(models.Model): # Thay tên class theo đúng file models.py của bạn
+    stt = models.IntegerField()
+    ma_to_hop_mon = models.CharField(max_length=10)
+    ten_to_hop_mon = models.CharField(max_length=255)
+    ma_mon_thi = models.CharField(max_length=255)
 
+    class Meta:
+        db_table = 'thm'  # Cố định tên bảng dưới database là 'thm'
 
 class CapNhatThongTinTrungTuyen(models.Model):
     sbd = models.CharField(max_length=50, null=True, blank=True, verbose_name="Số báo danh")
