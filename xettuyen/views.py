@@ -30,7 +30,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from docx import Document
 from lxml import etree
 from datetime import datetime, date
-from docx2pdf import convert
+try:
+    import pythoncom
+    from docx2pdf import convert
+except (ImportError, ModuleNotFoundError):
+    pythoncom = None
+    convert = None
+
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, Http404
@@ -2176,14 +2182,14 @@ def get_val(row, col_idx, default=""):
 
 
 def parse_float(val):
-  """Chuyển đổi dữ liệu sang kiểu float an toàn."""
-  if val is None:
-    return None
-  try:
-    val_str = str(val).replace(',', '.').strip()
-    return float(val_str)
-  except (ValueError, TypeError):
-    return None
+    """Chuyển đổi dữ liệu sang kiểu float an toàn."""
+    if val is None:
+        return None
+    try:
+        val_str = str(val).replace(',', '.').strip()
+        return float(val_str)
+    except (ValueError, TypeError):
+        return None
 
 
 def parse_date(val):
@@ -2915,154 +2921,87 @@ def replace_docx_placeholders(doc, context):
             if hf and hasattr(hf, '_element'):
                 replace_in_xml_element(hf._element)
 
-#VIEW IN GIẤY BÁO TRÚNG TUYỂN 
+# ==========================================
+# HÀM HỖ TRỢ CHUYỂN ĐỔI 1 FILE DOCX SANG PDF BYTES (ĐÃ SỬA LỖI ĐƯỜNG DẪN WINDOWS)
+# ==========================================
+def convert_single_docx_to_pdf_bytes(doc):
+    """Lưu tạm Document và biên dịch sang PDF Bytes an toàn trên Windows/Linux"""
+    # Tạo thư mục tạm an toàn trong media/temp_single
+    temp_dir = os.path.join(settings.BASE_DIR, 'media', 'temp_single')
+    os.makedirs(temp_dir, exist_ok=True)
 
-@custom_login_required
-@check_permission('in_giay_bao')
-def xu_ly_xuat_giay_bao(request, cccd=None, ts_id=None):
-    identifier = cccd or ts_id
+    unique_id = uuid.uuid4().hex
+    docx_path = os.path.abspath(os.path.join(temp_dir, f'temp_{unique_id}.docx'))
+    pdf_path = os.path.abspath(os.path.join(temp_dir, f'temp_{unique_id}.pdf'))
 
-    # 1. Kiểm tra quyền truy cập (Đã bổ sung role_code 'canbo')
-    role_code = request.session.get('role_code')
-    role_name = request.session.get('role_name')
-    
-    is_staff_or_admin = (
-        role_code in ['admin', 'canbo'] or 
-        role_name in ['Quản trị viên', 'Administrator', 'Cán bộ', 'Can bo']
-    )
-    student_cccd = request.session.get('student_cccd')
+    # Lưu file DOCX tạm
+    doc.save(docx_path)
 
-    # Chỉ chặn nếu KHÔNG PHẢI cán bộ/admin VÀ (không phải thí sinh hoặc cố xem CCCD khác)
-    if not is_staff_or_admin and (not student_cccd or str(student_cccd) != str(identifier)):
-        return HttpResponse("Bạn không có quyền truy cập thông tin này!", status=403)
+    if sys.platform == 'win32':
+        import pythoncom
+        import win32com.client
 
-    is_preview = request.GET.get('preview') == '1'
-    fetch_pdf = request.GET.get('fetch_pdf') == '1'
+        pythoncom.CoInitialize()
+        word = None
+        try:
+            word = win32com.client.DispatchEx('Word.Application')
+            word.Visible = False
+            word.DisplayAlerts = 0
 
-    # ⚡ BƯỚC 1: NẾU BẤM XEM TRƯỚC -> LUÔN HIỂN THỊ MÀN HÌNH LOADING TRƯỚC
-    # (Dù đã có Cache hay chưa cũng hiện loading để người dùng biết hệ thống đang xử lý)
-    if is_preview and not fetch_pdf:
-        loading_html = f"""
-        <!DOCTYPE html>
-        <html lang="vi">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Đang tải Giấy báo - {identifier}</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-            <style>
-                body {{
-                    background-color: #f4f6f9;
-                    height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }}
-                .loading-card {{
-                    background: #ffffff;
-                    padding: 40px;
-                    border-radius: 16px;
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-                    text-align: center;
-                    max-width: 460px;
-                    width: 90%;
-                }}
-                .spinner-border {{
-                    width: 3.5rem;
-                    height: 3.5rem;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="loading-card">
-                <div class="spinner-border text-primary mb-4" role="status"></div>
-                <h5 class="fw-bold mb-2 text-dark">Đang nạp Giấy báo trúng tuyển</h5>
-                <p class="text-muted small mb-3">Vui lòng chờ trong giây lát...</p>
-
-                <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
-                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 30%;"></div>
-                </div>
-
-                <small id="statusText" class="text-secondary fw-semibold">Đang chuẩn bị dữ liệu...</small>
-            </div>
-
-            <script>
-                const progressBar = document.getElementById('progressBar');
-                const statusText = document.getElementById('statusText');
-
-                // Tạo hiệu ứng chạy thanh progress nhẹ nhàng
-                let progress = 30;
-                const interval = setInterval(() => {{
-                    if (progress < 85) {{
-                        progress += 15;
-                        progressBar.style.width = progress + '%';
-                    }}
-                }}, 150);
-
-                // Gọi request lấy file PDF thực sự (Background Fetch)
-                const requestUrl = new URL(window.location.href);
-                requestUrl.searchParams.set('fetch_pdf', '1');
-
-                fetch(requestUrl.toString())
-                    .then(response => {{
-                        if (!response.ok) throw new Error('Không thể tải file PDF.');
-                        return response.blob();
-                    }})
-                    .then(blob => {{
-                        clearInterval(interval);
-                        progressBar.style.width = '100%';
-                        statusText.innerText = 'Hoàn tất! Đang mở PDF...';
-
-                        const pdfUrl = URL.createObjectURL(blob);
-                        setTimeout(() => {{
-                            window.location.href = pdfUrl;
-                        }}, 150);
-                    }})
-                    .catch(err => {{
-                        clearInterval(interval);
-                        document.body.innerHTML = `
-                            <div class="card p-4 shadow-sm border-0 text-center" style="max-width: 500px; margin: auto;">
-                                <div class="text-danger mb-3"><i class="fa-solid fa-triangle-exclamation fa-3x"></i></div>
-                                <h5 class="text-danger fw-bold">⚠️ Không thể tạo file PDF</h5>
-                                <p class="text-secondary small mt-2">${{err.message}}</p>
-                                <button class="btn btn-primary btn-sm mt-2" onclick="location.reload()">Thử lại</button>
-                            </div>
-                        `;
-                    }});
-            </script>
-        </body>
-        </html>
-        """
-        return HttpResponse(loading_html)
-
-    # ⚡ BƯỚC 2: KIỂM TRA CACHE KHI JAVASCRIPT GỌI FETCH_PDF=1 (HOẶC TẢI WORD DỰA TRÊN ID)
-    cache_key = f"giay_bao_pdf_{identifier}" if is_preview else f"giay_bao_docx_{identifier}"
-    cached_file = cache.get(cache_key)
-
-    if cached_file:
-        if is_preview:
-            response = HttpResponse(cached_file, content_type='application/pdf')
-            response['Content-Disposition'] = f'inline; filename="XemTruoc_{identifier}.pdf"'
-            return response
-        else:
-            response = HttpResponse(
-                cached_file,
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            word_doc = word.Documents.Open(
+                FileName=docx_path,
+                ConfirmConversions=False,
+                ReadOnly=True,
+                AddToRecentFiles=False,
             )
-            response['Content-Disposition'] = f'attachment; filename="GiayBao_{identifier}.docx"'
-            return response
-
-    # ⚡ BƯỚC 3: NẾU CHƯA CÓ CACHE THÌ MỚI TRUY VẤN DB & TẠO FILE TỪ MS WORD
-    if cccd:
-        ts = MauImportGiayBao.objects.filter(cccd=cccd).first()
+            word_doc.SaveAs(pdf_path, FileFormat=17)  # 17 = wdFormatPDF
+            word_doc.Close(SaveChanges=0)
+        except Exception as e:
+            raise Exception(f'Lỗi khi xuất PDF từ MS Word: {str(e)}')
+        finally:
+            if word:
+                try:
+                    word.Quit()
+                except Exception:
+                    pass
+            pythoncom.CoUninitialize()
     else:
-        ts = MauImportGiayBao.objects.filter(Q(id=ts_id) | Q(IDSV=ts_id)).first()
+        # Dự phòng cho môi trường Linux/Docker nếu có sử dụng LibreOffice
+        import subprocess
 
-    if not ts:
-        return HttpResponse("Không tìm thấy dữ liệu thí sinh!", status=404)
+        cmd = [
+            'libreoffice',
+            '--headless',
+            '--convert-to',
+            'pdf',
+            docx_path,
+            '--outdir',
+            temp_dir,
+        ]
+        subprocess.run(cmd, check=True)
 
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f'Không thể tạo file PDF tại {pdf_path}')
+
+    with open(pdf_path, 'rb') as f:
+        pdf_bytes = f.read()
+
+    # Dọn dẹp file tạm ngay sau khi đọc xong
+    for path in [docx_path, pdf_path]:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+    return pdf_bytes
+
+
+# ==========================================
+# PREPARE DOCX DOCUMENT
+# ==========================================
+def prepare_docx_document(ts):
+    """Tạo đối tượng Document Word đã được điền dữ liệu thí sinh"""
     ptxt_upper = (ts.ptxt or '').upper()
 
     if 'DGNL' in ptxt_upper or (ts.pt2_dgnl and str(ts.pt2_dgnl).strip() != ''):
@@ -3072,11 +3011,9 @@ def xu_ly_xuat_giay_bao(request, cccd=None, ts_id=None):
     else:
         template_name = 'DS PT2-TN THPT.docx'
 
-    template_path = os.path.join(settings.BASE_DIR, 'xettuyen', 'templates', 'docx', template_name)
-
-    if not os.path.exists(template_path):
-        messages.error(request, f'Không tìm thấy file mẫu Word: templates/docx/{template_name}')
-        return redirect('danh_sach_trung_tuyen')
+    template_path = os.path.join(
+        settings.BASE_DIR, 'xettuyen', 'templates', 'docx', template_name
+    )
 
     raw_ctdt = str(ts.ctdt or '').strip()
     ctdt_ten = raw_ctdt.split(':', 1)[-1].strip() if raw_ctdt else ''
@@ -3129,23 +3066,183 @@ def xu_ly_xuat_giay_bao(request, cccd=None, ts_id=None):
 
     doc = Document(template_path)
     replace_docx_placeholders(doc, context)
+    return doc
 
-    # ⚡ BƯỚC 4: SINH FILE LẦN ĐẦU VÀ LƯU VÀO CACHE TRONG 24 GIỜ
+
+# ==========================================
+# VIEW IN GIẤY BÁO TRÚNG TUYỂN
+# ==========================================
+@custom_login_required
+@check_permission('in_giay_bao')
+def xu_ly_xuat_giay_bao(request, cccd=None, ts_id=None):
+    identifier = cccd or ts_id
+
+    # 1. Kiểm tra quyền truy cập (Đã bổ sung role_code 'canbo')
+    role_code = (request.session.get('role_code') or '').lower()
+    role_name = request.session.get('role_name')
+
+    is_staff_or_admin = (
+        role_code in ['admin', 'canbo']
+        or role_name in ['Quản trị viên', 'Administrator', 'Cán bộ', 'Can bo']
+    )
+    student_cccd = request.session.get('student_cccd')
+
+    # Chỉ chặn nếu KHÔNG PHẢI cán bộ/admin VÀ (không phải thí sinh hoặc cố xem CCCD khác)
+    if not is_staff_or_admin and (
+        not student_cccd or str(student_cccd) != str(identifier)
+    ):
+        return HttpResponse('Bạn không có quyền truy cập thông tin này!', status=403)
+
+    is_preview = request.GET.get('preview') == '1'
+    fetch_pdf = request.GET.get('fetch_pdf') == '1'
+
+    # ⚡ BƯỚC 1: NẾU BẤM XEM TRƯỚC -> LUÔN HIỂN THỊ MÀN HÌNH LOADING TRƯỚC
+    if is_preview and not fetch_pdf:
+        loading_html = f"""
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Đang tải Giấy báo - {identifier}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <style>
+                body {{
+                    background-color: #f4f6f9;
+                    height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                }}
+                .loading-card {{
+                    background: #ffffff;
+                    padding: 40px;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+                    text-align: center;
+                    max-width: 460px;
+                    width: 90%;
+                }}
+                .spinner-border {{
+                    width: 3.5rem;
+                    height: 3.5rem;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="loading-card">
+                <div class="spinner-border text-primary mb-4" role="status"></div>
+                <h5 class="fw-bold mb-2 text-dark">Đang nạp Giấy báo trúng tuyển</h5>
+                <p class="text-muted small mb-3">Vui lòng chờ trong giây lát...</p>
+
+                <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 30%;"></div>
+                </div>
+
+                <small id="statusText" class="text-secondary fw-semibold">Đang chuẩn bị dữ liệu...</small>
+            </div>
+
+            <script>
+                const progressBar = document.getElementById('progressBar');
+                const statusText = document.getElementById('statusText');
+
+                let progress = 30;
+                const interval = setInterval(() => {{
+                    if (progress < 85) {{
+                        progress += 15;
+                        progressBar.style.width = progress + '%';
+                    }}
+                }}, 150);
+
+                const requestUrl = new URL(window.location.href);
+                requestUrl.searchParams.set('fetch_pdf', '1');
+
+                fetch(requestUrl.toString())
+                    .then(response => {{
+                        if (!response.ok) throw new Error('Không thể tải file PDF.');
+                        return response.blob();
+                    }})
+                    .then(blob => {{
+                        clearInterval(interval);
+                        progressBar.style.width = '100%';
+                        statusText.innerText = 'Hoàn tất! Đang mở PDF...';
+
+                        const pdfUrl = URL.createObjectURL(blob);
+                        setTimeout(() => {{
+                            window.location.href = pdfUrl;
+                        }}, 150);
+                    }})
+                    .catch(err => {{
+                        clearInterval(interval);
+                        document.body.innerHTML = `
+                            <div class="card p-4 shadow-sm border-0 text-center" style="max-width: 500px; margin: auto;">
+                                <div class="text-danger mb-3"><i class="fa-solid fa-triangle-exclamation fa-3x"></i></div>
+                                <h5 class="text-danger fw-bold">⚠️ Không thể tạo file PDF</h5>
+                                <p class="text-secondary small mt-2">${{err.message}}</p>
+                                <button class="btn btn-primary btn-sm mt-2" onclick="location.reload()">Thử lại</button>
+                            </div>
+                        `;
+                    }});
+            </script>
+        </body>
+        </html>
+        """
+        return HttpResponse(loading_html)
+
+    # ⚡ BƯỚC 2: KIỂM TRA CACHE KHI JAVASCRIPT GỌI FETCH_PDF=1 (HOẶC TẢI WORD)
+    cache_key = (
+        f'giay_bao_pdf_{identifier}' if is_preview else f'giay_bao_docx_{identifier}'
+    )
+    cached_file = cache.get(cache_key)
+
+    if cached_file:
+        if is_preview:
+            response = HttpResponse(cached_file, content_type='application/pdf')
+            response['Content-Disposition'] = (
+                f'inline; filename="XemTruoc_{identifier}.pdf"'
+            )
+            return response
+        else:
+            response = HttpResponse(
+                cached_file,
+                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            )
+            response['Content-Disposition'] = (
+                f'attachment; filename="GiayBao_{identifier}.docx"'
+            )
+            return response
+
+    # ⚡ BƯỚC 3: NẾU CHƯA CÓ CACHE THÌ MỚI TRUY VẤN DB & TẠO FILE TỪ MS WORD
+    if cccd:
+        ts = MauImportGiayBao.objects.filter(cccd=cccd).first()
+    else:
+        ts = MauImportGiayBao.objects.filter(Q(id=ts_id) | Q(IDSV=ts_id)).first()
+
+    if not ts:
+        return HttpResponse('Không tìm thấy dữ liệu thí sinh!', status=404)
+
+    doc = prepare_docx_document(ts)
+
+    # ⚡ BƯỚC 4: SINH FILE LẦN ĐẦU VÀ LƯU VÀO CACHE TRONG 4 GIỜ
     if is_preview:
         try:
             pdf_bytes = convert_single_docx_to_pdf_bytes(doc)
-            cache.set(cache_key, pdf_bytes, timeout=14400) # Lưu Cache 24h
+            cache.set(cache_key, pdf_bytes, timeout=14400)  # Lưu Cache 4h
 
             response = HttpResponse(pdf_bytes, content_type='application/pdf')
-            response['Content-Disposition'] = f'inline; filename="XemTruoc_{ts.cccd or ts.ma_sv}.pdf"'
+            response['Content-Disposition'] = (
+                f'inline; filename="XemTruoc_{ts.cccd or ts.ma_sv}.pdf"'
+            )
             return response
         except Exception as e:
-            return HttpResponse(str(e), status=500)
+            return HttpResponse(f'Lỗi tạo PDF: {str(e)}', status=500)
 
     buffer = io.BytesIO()
     doc.save(buffer)
     docx_bytes = buffer.getvalue()
-    cache.set(cache_key, docx_bytes, timeout=14400) # Lưu Cache 24h
+    cache.set(cache_key, docx_bytes, timeout=14400)  # Lưu Cache 4h
 
     filename = f"GiayBao_{ts.cccd or ts.ma_sv or 'ThongBao'}.docx"
     response = HttpResponse(
@@ -3156,7 +3253,9 @@ def xu_ly_xuat_giay_bao(request, cccd=None, ts_id=None):
     return response
 
 
-# XUẤT TOÀN BỘ GIẤY BÁO TRÚNG TUYỂN TẤT CẢ QUA PDF
+# ==========================================
+# XUẤT TOÀN BỘ GIẤY BÁO TRÚNG TUYỂN TẤT CẢ QUA PDF ZIP
+# ==========================================
 def clean_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', '', filename)
 
@@ -3167,82 +3266,23 @@ def generate_single_docx(ts, idx, docx_dir):
 
     if 'DGNL' in clean_text or 'ĐGNL' in clean_text:
         category = 'DGNL'
-        template_name = 'DS PT2-DGNL.docx'
     elif 'VSAT' in clean_text:
         category = 'VSAT'
-        template_name = 'DS PT2-VSAT.docx'
     else:
         category = 'THPT'
-        template_name = 'DS PT2-TN THPT.docx'
-
-    template_path = os.path.join(
-        settings.BASE_DIR, 'xettuyen', 'templates', 'docx', template_name
-    )
-    if not os.path.exists(template_path):
-        return None
 
     cat_docx_dir = os.path.join(docx_dir, category)
     os.makedirs(cat_docx_dir, exist_ok=True)
 
-    raw_ctdt = str(ts.ctdt or '').strip()
-    ctdt_ten = raw_ctdt.split(':', 1)[-1].strip() if raw_ctdt else ''
-
-    raw_barcode = (
-        str(ts.barcode).strip()
-        if getattr(ts, 'barcode', None)
-        else (ts.cccd or ts.ma_dkxt or '')
-    )
-    formatted_barcode = f'*{raw_barcode.strip("*")}*' if raw_barcode else ''
-
-    context = {
-        'SoCV': ts.so_cv or '',
-        'HoTen': ts.ho_ten or '',
-        'MaDKXT': ts.ma_dkxt or '',
-        'NgaySinh': ts.ngay_sinh or '',
-        'DienThoai': getattr(ts, 'dien_thoai', '') or getattr(ts, 'sdt', '') or '',
-        'DT': ts.dtut or '',
-        'Khuvuc': ts.kvut or '',
-        'HocBa': ts.hoc_ba or '',
-        'phuong_thuc_xet': ts.phuong_thuc_xet or '',
-        'CTDT': ctdt_ten,
-        'CCQT': getattr(ts, 'ccqt', '') or '',
-        'PT2_DiemCong': getattr(ts, 'pt2_diem_cong', '') or '',
-        'PT2_TN_THM': ts.pt2_tn_thm or '',
-        'PT2_TN_MaMon1': ts.pt2_tn_mamon1 or '',
-        'PT2_TN_DiemMon1': ts.pt2_tn_diemmon1 or '',
-        'PT2_TN_MaMon2': ts.pt2_tn_mamon2 or '',
-        'PT2_TN_DiemMon2': ts.pt2_tn_diemmon2 or '',
-        'PT2_TN_MaMon3': ts.pt2_tn_mamon3 or '',
-        'PT2_TN_DiemMon3': ts.pt2_tn_diemmon3 or '',
-        'PT2_VSAT_THM': ts.pt2_vsat_thm or '',
-        'PT2_VSAT_MaMon1': ts.pt2_vsat_mamon1 or '',
-        'PT2_VSAT_DiemMon1': ts.pt2_vsat_diemmon1 or '',
-        'PT2_VSAT_MaMon2': ts.pt2_vsat_mamon2 or '',
-        'PT2_VSAT_DiemMon2': ts.pt2_vsat_diemmon2 or '',
-        'PT2_VSAT_MaMon3': ts.pt2_vsat_mamon3 or '',
-        'PT2_VSAT_DiemMon3': ts.pt2_vsat_diemmon3 or '',
-        'PT2_DGNL': ts.pt2_dgnl or '',
-        'PT2a_DiemTBTHPT': ts.pt2a_diemtbthpt or '',
-        'PT2_DiemQD': ts.pt2_diem_qd or '',
-        'PT2_QD': ts.pt2_qd or '',
-        'BarCode': formatted_barcode,
-        'DTC0': ts.dtc0 if ts.dtc0 is not None else '0',
-        'DC': ts.dc if ts.dc is not None else '',
-        'Page': ts.page or '',
-        'ViTri_1': '',
-        'ViTri_2': '',
-    }
-
     try:
-        doc = Document(template_path)
-        replace_docx_placeholders(doc, context)
-
+        doc = prepare_docx_document(ts)
         ident = ts.cccd or ts.ma_sv or str(idx)
         filename = clean_filename(f'{idx:04d}_{ident}_{ts.ho_ten}.docx')
         filepath = os.path.join(cat_docx_dir, filename)
         doc.save(filepath)
         return filepath
-    except Exception:
+    except Exception as e:
+        print(f'Lỗi tạo file docx thí sinh {ts.ho_ten}: {e}')
         return None
 
 
@@ -3274,7 +3314,9 @@ def convert_folder_docx_to_pdf(
                 if filename.endswith('.docx') and not filename.startswith('~$'):
                     docx_path = os.path.abspath(os.path.join(root, filename))
                     pdf_filename = os.path.splitext(filename)[0] + '.pdf'
-                    pdf_path = os.path.abspath(os.path.join(target_pdf_dir, pdf_filename))
+                    pdf_path = os.path.abspath(
+                        os.path.join(target_pdf_dir, pdf_filename)
+                    )
 
                     try:
                         doc = word.Documents.Open(
@@ -3448,10 +3490,9 @@ def download_export_zip(request, task_id):
         raise Http404('File nén không tồn tại hoặc đã hết hạn.')
 
     file_path = data['file_path']
-    
-    # Khởi tạo response tự động gắn ngày: "DanhSach_GiayBao_PDF_DDMMYYYY.zip"
+
     response = create_file_response('DanhSach_GiayBao_PDF', extension='zip')
-    
+
     with open(file_path, 'rb') as f:
         response.content = f.read()
 
@@ -3462,7 +3503,10 @@ def download_export_zip(request, task_id):
 
     return response
 
-# PHÂN HỆ IN GIẤY BÁO TRÚNG TUYỂN 
+
+# ==========================================
+# PHÂN HỆ IN GIẤY BÁO TRÚNG TUYỂN (DANH SÁCH)
+# ==========================================
 @custom_login_required
 @check_permission('in_giay_bao')
 def ds_in_giay_bao(request):
@@ -3473,7 +3517,9 @@ def ds_in_giay_bao(request):
     stats = {
         'total': all_data.count(),
         'thpt': all_data.filter(ptxt__icontains='THPT').count(),
-        'vsat': all_data.filter(Q(ptxt__icontains='VSAT') | Q(ptxt__icontains='V-SAT')).count(),
+        'vsat': all_data.filter(
+            Q(ptxt__icontains='VSAT') | Q(ptxt__icontains='V-SAT')
+        ).count(),
         'dgnl': all_data.filter(ptxt__icontains='DGNL').count(),
     }
 
@@ -3482,13 +3528,15 @@ def ds_in_giay_bao(request):
     context = {
         'cau_hinh': cau_hinh,
         'danh_sach': danh_sach,
-        'page_obj': None,  # Giữ giá trị None để tránh lỗi VariableDoesNotExist khi template truy vấn page_obj
+        'page_obj': None,  # Giữ giá trị None để tránh lỗi VariableDoesNotExist trên HTML
         'stats': stats,
     }
     return render(request, 'xettuyen/ds_in_giay_bao.html', context)
 
 
+# ==========================================
 # CODE LƯU CẤU HÌNH
+# ==========================================
 @custom_login_required
 @check_permission('in_giay_bao')
 def luu_cau_hinh_giay_bao(request):
@@ -3496,40 +3544,43 @@ def luu_cau_hinh_giay_bao(request):
     if request.method == 'POST':
         ngay_bat_dau_raw = request.POST.get('ngay_bat_dau')
         ngay_ket_thuc_raw = request.POST.get('ngay_ket_thuc')
-        
-        # Lấy giá trị bật/tắt nút xem giấy báo (xử lý cả dạng Checkbox lẫn Select/Radio)
         cho_phep_xem_raw = request.POST.get('cho_phep_xem')
 
         cau_hinh = CauHinhGiayBao.get_config()
-        
+
         try:
-            # Xử lý Ngày bắt đầu
             if ngay_bat_dau_raw:
                 dt_start = parse_datetime(ngay_bat_dau_raw)
                 if dt_start and timezone.is_naive(dt_start):
-                    dt_start = timezone.make_aware(dt_start, timezone.get_current_timezone())
+                    dt_start = timezone.make_aware(
+                        dt_start, timezone.get_current_timezone()
+                    )
                 cau_hinh.ngay_bat_dau = dt_start
             else:
                 cau_hinh.ngay_bat_dau = None
 
-            # Xử lý Ngày kết thúc
             if ngay_ket_thuc_raw:
                 dt_end = parse_datetime(ngay_ket_thuc_raw)
                 if dt_end and timezone.is_naive(dt_end):
-                    dt_end = timezone.make_aware(dt_end, timezone.get_current_timezone())
+                    dt_end = timezone.make_aware(
+                        dt_end, timezone.get_current_timezone()
+                    )
                 cau_hinh.ngay_ket_thuc = dt_end
             else:
                 cau_hinh.ngay_ket_thuc = None
 
-            # Lưu trạng thái Bật/Tắt hiển thị (Checkbox tick -> 'on'/'1'/'true', không tick -> None)
             cau_hinh.cho_phep_xem = cho_phep_xem_raw in ['on', '1', 'true', True]
 
             cau_hinh.save()
-            messages.success(request, "Đã lưu cấu hình thời gian và trạng thái tra cứu thành công!")
+            messages.success(
+                request,
+                'Đã lưu cấu hình thời gian và trạng thái tra cứu thành công!',
+            )
         except Exception as e:
-            messages.error(request, f"Lỗi khi lưu cấu hình: {str(e)}")
+            messages.error(request, f'Lỗi khi lưu cấu hình: {str(e)}')
 
     return redirect('ds_in_giay_bao')
+
 
 # ==========================================
 # 1. VIEW CHO ADMIN VÀ CÁN BỘ (BẮT BUỘC ĐĂNG NHẬP)
@@ -3538,26 +3589,25 @@ def luu_cau_hinh_giay_bao(request):
 @check_permission('in_giay_bao')
 def in_giay_bao(request, cccd=None, ts_id=None):
     identifier = cccd or ts_id
-    
-    # Kiểm tra vai trò Quản trị viên (admin) hoặc Cán bộ (canbo)
+
     role_code = (request.session.get('role_code') or '').lower()
     role_name = request.session.get('role_name')
-    
+
     is_staff_or_admin = (
         role_code in ['admin', 'canbo']
         or role_name in ['Quản trị viên', 'Administrator', 'Cán bộ']
     )
-    
+
     student_cccd = request.session.get('student_cccd')
 
     if not is_staff_or_admin and (
         not student_cccd or str(student_cccd) != str(identifier)
     ):
-        return HttpResponse(
-            'Bạn không có quyền truy cập thông tin này!', status=403
-        )
+        return HttpResponse('Bạn không có quyền truy cập thông tin này!', status=403)
 
     return xu_ly_xuat_giay_bao(request, identifier)
+
+
 # ==========================================
 # 2. VIEW CHO SINH VIÊN TRA CỨU (DÙNG SESSION TRA CỨU)
 # ==========================================
@@ -3566,7 +3616,6 @@ def in_giay_bao_sinh_vien(request):
     cau_hinh = CauHinhGiayBao.get_config()
     now = timezone.now()
 
-    # Kiểm tra thời gian bắt đầu
     if cau_hinh.ngay_bat_dau and now < cau_hinh.ngay_bat_dau:
         start_str = cau_hinh.ngay_bat_dau.strftime('%H:%M %d/%m/%Y')
         return HttpResponse(
@@ -3574,14 +3623,12 @@ def in_giay_bao_sinh_vien(request):
             status=403,
         )
 
-    # Kiểm tra thời gian kết thúc
     if cau_hinh.ngay_ket_thuc and now > cau_hinh.ngay_ket_thuc:
         return HttpResponse(
             'Hệ thống đã đóng cổng tra cứu và in giấy báo trúng tuyển!',
             status=403,
         )
 
-    # Kiểm tra phiên làm việc sinh viên
     student_cccd = request.session.get('student_cccd')
     if not student_cccd:
         return HttpResponse(
@@ -3589,69 +3636,6 @@ def in_giay_bao_sinh_vien(request):
         )
 
     return xu_ly_xuat_giay_bao(request, student_cccd)
-    
-    
-#XUẤT GIẤY BÁO CHO SINH VIÊN XEM    
-def prepare_docx_document(ts):
-    """Tạo đối tượng Document Word đã được điền dữ liệu thí sinh"""
-    ptxt_upper = (ts.ptxt or '').upper()
-
-    if 'DGNL' in ptxt_upper or (ts.pt2_dgnl and str(ts.pt2_dgnl).strip() != ''):
-        template_name = 'DS PT2-DGNL.docx'
-    elif 'VSAT' in ptxt_upper or (ts.pt2_vsat_thm and str(ts.pt2_vsat_thm).strip() != ''):
-        template_name = 'DS PT2-VSAT.docx'
-    else:
-        template_name = 'DS PT2-TN THPT.docx'
-
-    template_path = os.path.join(settings.BASE_DIR, 'xettuyen', 'templates', 'docx', template_name)
-
-    raw_ctdt = str(ts.ctdt or '').strip()
-    ctdt_ten = raw_ctdt.split(':', 1)[-1].strip() if raw_ctdt else ''
-
-    raw_barcode = str(ts.barcode).strip() if getattr(ts, 'barcode', None) else (ts.cccd or ts.ma_dkxt or '')
-    formatted_barcode = f'*{raw_barcode.strip("*")}*' if raw_barcode else ''
-
-    context = {
-        'SoCV': ts.so_cv or '',
-        'HoTen': ts.ho_ten or '',
-        'MaDKXT': ts.ma_dkxt or '',
-        'NgaySinh': ts.ngay_sinh or '',
-        'DT': ts.dtut or '',
-        'Khuvuc': ts.kvut or '',
-        'HocBa': ts.hoc_ba or '',
-        'phuong_thuc_xet': ts.phuong_thuc_xet or '',
-        'CTDT': ctdt_ten,
-        'CCQT': getattr(ts, 'ccqt', '') or '',
-        'PT2_DiemCong': getattr(ts, 'pt2_diem_cong', '') or '',
-        'PT2_TN_THM': ts.pt2_tn_thm or '',
-        'PT2_TN_MaMon1': ts.pt2_tn_mamon1 or '',
-        'PT2_TN_DiemMon1': ts.pt2_tn_diemmon1 or '',
-        'PT2_TN_MaMon2': ts.pt2_tn_mamon2 or '',
-        'PT2_TN_DiemMon2': ts.pt2_tn_diemmon2 or '',
-        'PT2_TN_MaMon3': ts.pt2_tn_mamon3 or '',
-        'PT2_TN_DiemMon3': ts.pt2_tn_diemmon3 or '',
-        'PT2_VSAT_THM': ts.pt2_vsat_thm or '',
-        'PT2_VSAT_MaMon1': ts.pt2_vsat_mamon1 or '',
-        'PT2_VSAT_DiemMon1': ts.pt2_vsat_diemmon1 or '',
-        'PT2_VSAT_MaMon2': ts.pt2_vsat_mamon2 or '',
-        'PT2_VSAT_DiemMon2': ts.pt2_vsat_diemmon2 or '',
-        'PT2_VSAT_MaMon3': ts.pt2_vsat_mamon3 or '',
-        'PT2_VSAT_DiemMon3': ts.pt2_vsat_diemmon3 or '',
-        'PT2_DGNL': ts.pt2_dgnl or '',
-        'PT2a_DiemTBTHPT': ts.pt2a_diemtbthpt or '',
-        'PT2_DiemQD': ts.pt2_diem_qd or '',
-        'PT2_QD': ts.pt2_qd or '',
-        'BarCode': formatted_barcode,
-        'DTC0': ts.dtc0 if ts.dtc0 is not None else '0',
-        'DC': ts.dc if ts.dc is not None else '',
-        'Page': ts.page or '',
-        'ViTri_1': '',
-        'ViTri_2': '',
-    }
-
-    doc = Document(template_path)
-    replace_docx_placeholders(doc, context)
-    return doc
 # DANH SÁCH TRƯỜNG THPT  
 @custom_login_required
 @check_permission('danh_sach_truong_thpt')
