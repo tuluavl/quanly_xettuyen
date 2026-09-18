@@ -2790,29 +2790,9 @@ def export_sms(request):
 
     wb.save(response)
     return response
-
-
-# XEM VÀ IN GIẤY BÁO TRÚNG TUYỂN
-def convert_single_docx_to_pdf_bytes(doc):
-    """Chuyển đổi DOCX -> PDF bằng Microsoft Word (docx2pdf) cho xem trước lẻ."""
-    pythoncom.CoInitialize()
-    try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            docx_path = os.path.join(temp_dir, 'temp.docx')
-            pdf_path = os.path.join(temp_dir, 'temp.pdf')
-
-            doc.save(docx_path)
-            convert(docx_path, pdf_path)
-
-            if not os.path.exists(pdf_path):
-                raise RuntimeError('Không thể tạo file PDF từ Microsoft Word.')
-
-            with open(pdf_path, 'rb') as f:
-                return f.read()
-    finally:
-        pythoncom.CoUninitialize()
-
-
+# ==========================================
+# HÀM THAY THẾ PLACEHOLDER TRONG FILE DOCX
+# ==========================================
 def replace_docx_placeholders(doc, context):
     bold_keys = ['HoTen', 'SoCV', 'NgaySinh', 'DT', 'Khuvuc', 'DienThoai']
 
@@ -2921,12 +2901,12 @@ def replace_docx_placeholders(doc, context):
             if hf and hasattr(hf, '_element'):
                 replace_in_xml_element(hf._element)
 
+
 # ==========================================
-# HÀM HỖ TRỢ CHUYỂN ĐỔI 1 FILE DOCX SANG PDF BYTES (ĐÃ SỬA LỖI ĐƯỜNG DẪN WINDOWS)
+# HÀM CHUYỂN ĐỔI 1 FILE DOCX SANG PDF BYTES (TỰ ĐỘNG CHỌN MS WORD / LIBREOFFICE)
 # ==========================================
 def convert_single_docx_to_pdf_bytes(doc):
     """Lưu tạm Document và biên dịch sang PDF Bytes an toàn trên Windows/Linux"""
-    # Tạo thư mục tạm an toàn trong media/temp_single
     temp_dir = os.path.join(settings.BASE_DIR, 'media', 'temp_single')
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -2937,64 +2917,81 @@ def convert_single_docx_to_pdf_bytes(doc):
     # Lưu file DOCX tạm
     doc.save(docx_path)
 
-    if sys.platform == 'win32':
-        import pythoncom
-        import win32com.client
+    profile_dir = f"/tmp/libreoffice_profile_{os.getpid()}_{unique_id}"
 
-        pythoncom.CoInitialize()
-        word = None
-        try:
-            word = win32com.client.DispatchEx('Word.Application')
-            word.Visible = False
-            word.DisplayAlerts = 0
+    try:
+        if sys.platform == 'win32':
+            import pythoncom
+            import win32com.client
 
-            word_doc = word.Documents.Open(
-                FileName=docx_path,
-                ConfirmConversions=False,
-                ReadOnly=True,
-                AddToRecentFiles=False,
+            pythoncom.CoInitialize()
+            word = None
+            try:
+                word = win32com.client.DispatchEx('Word.Application')
+                word.Visible = False
+                word.DisplayAlerts = 0
+
+                word_doc = word.Documents.Open(
+                    FileName=docx_path,
+                    ConfirmConversions=False,
+                    ReadOnly=True,
+                    AddToRecentFiles=False,
+                )
+                word_doc.SaveAs(pdf_path, FileFormat=17)  # 17 = wdFormatPDF
+                word_doc.Close(SaveChanges=0)
+            except Exception as e:
+                raise Exception(f'Lỗi khi xuất PDF từ MS Word: {str(e)}')
+            finally:
+                if word:
+                    try:
+                        word.Quit()
+                    except Exception:
+                        pass
+                pythoncom.CoUninitialize()
+        else:
+            # Môi trường Linux Server (Render, Docker, VPS)
+            cmd = [
+                'libreoffice',
+                f'-env:UserInstallation=file://{profile_dir}',
+                '--headless',
+                '--convert-to',
+                'pdf',
+                docx_path,
+                '--outdir',
+                temp_dir,
+            ]
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=60,
             )
-            word_doc.SaveAs(pdf_path, FileFormat=17)  # 17 = wdFormatPDF
-            word_doc.Close(SaveChanges=0)
-        except Exception as e:
-            raise Exception(f'Lỗi khi xuất PDF từ MS Word: {str(e)}')
-        finally:
-            if word:
+
+            if result.returncode != 0:
+                raise RuntimeError(f"Lỗi LibreOffice: {result.stderr or result.stdout}")
+
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f'Không thể tạo file PDF tại {pdf_path}')
+
+        with open(pdf_path, 'rb') as f:
+            pdf_bytes = f.read()
+
+        return pdf_bytes
+
+    finally:
+        # Dọn dẹp các file tạm
+        for path in [docx_path, pdf_path]:
+            if os.path.exists(path):
                 try:
-                    word.Quit()
+                    os.remove(path)
                 except Exception:
                     pass
-            pythoncom.CoUninitialize()
-    else:
-        # Dự phòng cho môi trường Linux/Docker nếu có sử dụng LibreOffice
-        import subprocess
-
-        cmd = [
-            'libreoffice',
-            '--headless',
-            '--convert-to',
-            'pdf',
-            docx_path,
-            '--outdir',
-            temp_dir,
-        ]
-        subprocess.run(cmd, check=True)
-
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f'Không thể tạo file PDF tại {pdf_path}')
-
-    with open(pdf_path, 'rb') as f:
-        pdf_bytes = f.read()
-
-    # Dọn dẹp file tạm ngay sau khi đọc xong
-    for path in [docx_path, pdf_path]:
-        if os.path.exists(path):
+        if sys.platform != 'win32' and os.path.exists(profile_dir):
             try:
-                os.remove(path)
+                shutil.rmtree(profile_dir, ignore_errors=True)
             except Exception:
                 pass
-
-    return pdf_bytes
 
 
 # ==========================================
@@ -3289,20 +3286,74 @@ def generate_single_docx(ts, idx, docx_dir):
 def convert_folder_docx_to_pdf(
     docx_dir, pdf_dir, task_id=None, total_files=1, zip_file_path=''
 ):
-    if sys.platform != 'win32':
-        raise Exception('Hệ thống chỉ hỗ trợ chuyển đổi PDF trên Windows!')
-
-    import pythoncom
-    import win32com.client
-
-    pythoncom.CoInitialize()
-    word = None
     converted_count = 0
-    try:
-        word = win32com.client.DispatchEx('Word.Application')
-        word.Visible = False
-        word.DisplayAlerts = 0
 
+    if sys.platform == 'win32':
+        import pythoncom
+        import win32com.client
+
+        pythoncom.CoInitialize()
+        word = None
+        try:
+            word = win32com.client.DispatchEx('Word.Application')
+            word.Visible = False
+            word.DisplayAlerts = 0
+
+            for root, dirs, files in os.walk(docx_dir):
+                rel_path = os.path.relpath(root, docx_dir)
+                target_pdf_dir = (
+                    pdf_dir if rel_path == '.' else os.path.join(pdf_dir, rel_path)
+                )
+                os.makedirs(target_pdf_dir, exist_ok=True)
+
+                for filename in files:
+                    if filename.endswith('.docx') and not filename.startswith('~$'):
+                        docx_path = os.path.abspath(os.path.join(root, filename))
+                        pdf_filename = os.path.splitext(filename)[0] + '.pdf'
+                        pdf_path = os.path.abspath(
+                            os.path.join(target_pdf_dir, pdf_filename)
+                        )
+
+                        try:
+                            doc = word.Documents.Open(
+                                FileName=docx_path,
+                                ConfirmConversions=False,
+                                ReadOnly=True,
+                                AddToRecentFiles=False,
+                            )
+                            doc.SaveAs(pdf_path, FileFormat=17)
+                            doc.Close(SaveChanges=0)
+
+                            converted_count += 1
+                            if task_id and total_files > 0:
+                                percent = 40 + int((converted_count / total_files) * 50)
+                                cache.set(
+                                    f'task_{task_id}',
+                                    {
+                                        'status': 'processing',
+                                        'current': converted_count,
+                                        'total': total_files,
+                                        'percent': percent,
+                                        'file_path': zip_file_path,
+                                    },
+                                    timeout=3600,
+                                )
+                        except Exception as doc_err:
+                            print(f'Lỗi tạo PDF file {filename}: {doc_err}')
+                            continue
+
+            return True
+        except Exception as e:
+            raise Exception(f'Lỗi MS Word: {str(e)}')
+        finally:
+            if word:
+                try:
+                    word.Quit()
+                except Exception:
+                    pass
+            pythoncom.CoUninitialize()
+    else:
+        # Môi trường Linux Server / Docker
         for root, dirs, files in os.walk(docx_dir):
             rel_path = os.path.relpath(root, docx_dir)
             target_pdf_dir = (
@@ -3313,21 +3364,27 @@ def convert_folder_docx_to_pdf(
             for filename in files:
                 if filename.endswith('.docx') and not filename.startswith('~$'):
                     docx_path = os.path.abspath(os.path.join(root, filename))
-                    pdf_filename = os.path.splitext(filename)[0] + '.pdf'
-                    pdf_path = os.path.abspath(
-                        os.path.join(target_pdf_dir, pdf_filename)
-                    )
+                    unique_sub_id = uuid.uuid4().hex
+                    profile_dir = f"/tmp/libreoffice_profile_{os.getpid()}_{unique_sub_id}"
 
+                    cmd = [
+                        'libreoffice',
+                        f'-env:UserInstallation=file://{profile_dir}',
+                        '--headless',
+                        '--convert-to',
+                        'pdf',
+                        docx_path,
+                        '--outdir',
+                        target_pdf_dir,
+                    ]
                     try:
-                        doc = word.Documents.Open(
-                            FileName=docx_path,
-                            ConfirmConversions=False,
-                            ReadOnly=True,
-                            AddToRecentFiles=False,
+                        subprocess.run(
+                            cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True,
+                            timeout=60,
                         )
-                        doc.SaveAs(pdf_path, FileFormat=17)
-                        doc.Close(SaveChanges=0)
-
                         converted_count += 1
                         if task_id and total_files > 0:
                             percent = 40 + int((converted_count / total_files) * 50)
@@ -3344,18 +3401,13 @@ def convert_folder_docx_to_pdf(
                             )
                     except Exception as doc_err:
                         print(f'Lỗi tạo PDF file {filename}: {doc_err}')
-                        continue
-
+                    finally:
+                        if os.path.exists(profile_dir):
+                            try:
+                                shutil.rmtree(profile_dir, ignore_errors=True)
+                            except Exception:
+                                pass
         return True
-    except Exception as e:
-        raise Exception(f'Lỗi MS Word: {str(e)}')
-    finally:
-        if word:
-            try:
-                word.Quit()
-            except Exception:
-                pass
-        pythoncom.CoUninitialize()
 
 
 def start_export_all_pdf(request):
