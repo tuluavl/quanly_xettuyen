@@ -1038,6 +1038,7 @@ def xoa_diem_vsat(request, pk):
         item.delete()
         return JsonResponse({'success': True, 'message': 'Xóa dữ liệu thành công!'})
     return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ!'}, status=400)
+
 #QUẢN LÝ ĐIỂM CHUẨN
 @custom_login_required
 @check_permission('diem_chuan')
@@ -1065,7 +1066,81 @@ def diem_chuan(request):
                     except ValueError:
                         diem_chuan_map[ma_code] = 0.0
 
-            # Xác định trước danh sách các cột hợp lệ cần bulk_update
+            ds_thi_sinh = ThiSinhData.objects.all()
+            thi_sinh_cap_nhat = []
+            DIEM_LIET_THRESHOLD = 1.0 
+
+            for ts in ds_thi_sinh:
+                ts.kq_NV1 = ts.ma_NV1 = ts.nv_NV1 = None
+                ts.kq_NV2 = ts.ma_NV2 = ts.nv_NV2 = None
+                ts.kq_NV3 = ts.ma_NV3 = ts.nv_NV3 = None
+                ts.kq_TT = 'Trượt'
+                ts.ma_TT = ts.nv_TT = None
+
+                if hasattr(ts, 'diem_thi_TT'):
+                    ts.diem_thi_TT = None
+
+                ky_thi_val = getattr(ts, 'ky_thi', None)
+
+                nv_list = [
+                    (1, str(getattr(ts, 'nv1', '') or '').strip(), 'NV1', getattr(ts, 'tong_diem_qd_e_xet_nv1', None)),
+                    (2, str(getattr(ts, 'nv2', '') or '').strip(), 'NV2', getattr(ts, 'tong_diem_qd_e_xet_nv2', None)),
+                    (3, str(getattr(ts, 'nv3', '') or '').strip(), 'NV3', getattr(ts, 'tong_diem_qd_e_xet_nv3', None)),
+                ]
+
+                diem_chung_raw = getattr(ts, 'diem_xet_tuyen', None) or getattr(ts, 'tong_diem', None) or getattr(ts, 'diem', 0)
+
+                da_trung_tuyen = False
+
+                for stt, ma_nganh_nv, nv_tag, diem_nv_raw in nv_list:
+                    if not ma_nganh_nv:
+                        continue
+
+                    # KIỂM TRA ĐIỀU KIỆN RIÊNG NGÀNH LUẬT (7380107)
+                    dk_luat = str(getattr(ts, 'dieu_kien_nganh_luat', '') or '').strip()
+                    if ma_nganh_nv == '7380107' and 'không đủ điều kiện' in dk_luat.lower():
+                        setattr(ts, f'kq_{nv_tag}', 'Không đủ ĐK xét')
+                        continue
+
+                    raw_val = diem_nv_raw if diem_nv_raw is not None else diem_chung_raw
+                    try:
+                        diem_ts = float(str(raw_val).replace(',', '.').strip())
+                    except ValueError:
+                        diem_ts = 0.0
+
+                    diem_san = diem_chuan_map.get(ma_nganh_nv, 0.0)
+
+                    is_diem_hop_le = diem_ts > DIEM_LIET_THRESHOLD
+                    is_dat_diem_chuan = diem_san > 0 and diem_ts >= diem_san
+
+                    if is_dat_diem_chuan and is_diem_hop_le:
+                        setattr(ts, f'kq_{nv_tag}', 'D')
+                        setattr(ts, f'ma_{nv_tag}', ma_nganh_nv)
+                        setattr(ts, f'nv_{nv_tag}', str(stt))
+
+                        ts.kq_TT = 'D'
+                        ts.ma_TT = ma_nganh_nv
+                        ts.nv_TT = str(stt)
+
+                        if hasattr(ts, 'diem_thi_TT'):
+                            ts.diem_thi_TT = ky_thi_val
+
+                        if hasattr(ts, 'diem_xet_tuyen'):
+                            ts.diem_xet_tuyen = diem_ts
+
+                        da_trung_tuyen = True
+                        break
+                    else:
+                        setattr(ts, f'kq_{nv_tag}', 'Trượt')
+
+                if not da_trung_tuyen:
+                    ts.kq_TT = 'Trượt'
+                    ts.ma_TT = ts.nv_TT = None
+                    if hasattr(ts, 'diem_thi_TT'):
+                        ts.diem_thi_TT = None
+
+                thi_sinh_cap_nhat.append(ts)
+
             existing_fields = [f.name for f in ThiSinhData._meta.fields]
             target_fields = [
                 'kq_TT', 'ma_TT', 'nv_TT',
@@ -1076,97 +1151,13 @@ def diem_chuan(request):
             ]
             valid_update_fields = [f for f in target_fields if f in existing_fields]
 
-            DIEM_LIET_THRESHOLD = 1.0
-            CHUNK_SIZE = 1000
-            batch = []
-
-            if valid_update_fields:
+            if thi_sinh_cap_nhat and valid_update_fields:
                 with transaction.atomic():
-                    # Đọc dữ liệu theo con trỏ (iterator) để không load toàn bộ vào RAM cùng lúc
-                    for ts in ThiSinhData.objects.all().iterator(chunk_size=CHUNK_SIZE):
-                        ts.kq_NV1 = ts.ma_NV1 = ts.nv_NV1 = None
-                        ts.kq_NV2 = ts.ma_NV2 = ts.nv_NV2 = None
-                        ts.kq_NV3 = ts.ma_NV3 = ts.nv_NV3 = None
-                        ts.kq_TT = 'Trượt'
-                        ts.ma_TT = ts.nv_TT = None
-
-                        if hasattr(ts, 'diem_thi_TT'):
-                            ts.diem_thi_TT = None
-
-                        ky_thi_val = getattr(ts, 'ky_thi', None)
-
-                        nv_list = [
-                            (1, str(getattr(ts, 'nv1', '') or '').strip(), 'NV1', getattr(ts, 'tong_diem_qd_e_xet_nv1', None)),
-                            (2, str(getattr(ts, 'nv2', '') or '').strip(), 'NV2', getattr(ts, 'tong_diem_qd_e_xet_nv2', None)),
-                            (3, str(getattr(ts, 'nv3', '') or '').strip(), 'NV3', getattr(ts, 'tong_diem_qd_e_xet_nv3', None)),
-                        ]
-
-                        diem_chung_raw = getattr(ts, 'diem_xet_tuyen', None) or getattr(ts, 'tong_diem', None) or getattr(ts, 'diem', 0)
-                        da_trung_tuyen = False
-
-                        for stt, ma_nganh_nv, nv_tag, diem_nv_raw in nv_list:
-                            if not ma_nganh_nv:
-                                continue
-
-                            # KIỂM TRA ĐIỀU KIỆN RIÊNG NGÀNH LUẬT (7380107)
-                            dk_luat = str(getattr(ts, 'dieu_kien_nganh_luat', '') or '').strip()
-                            if ma_nganh_nv == '7380107' and 'không đủ điều kiện' in dk_luat.lower():
-                                setattr(ts, f'kq_{nv_tag}', 'Không đủ ĐK xét')
-                                continue
-
-                            raw_val = diem_nv_raw if diem_nv_raw is not None else diem_chung_raw
-                            try:
-                                diem_ts = float(str(raw_val).replace(',', '.').strip())
-                            except ValueError:
-                                diem_ts = 0.0
-
-                            diem_san = diem_chuan_map.get(ma_nganh_nv, 0.0)
-
-                            is_diem_hop_le = diem_ts > DIEM_LIET_THRESHOLD
-                            is_dat_diem_chuan = diem_san > 0 and diem_ts >= diem_san
-
-                            if is_dat_diem_chuan and is_diem_hop_le:
-                                setattr(ts, f'kq_{nv_tag}', 'D')
-                                setattr(ts, f'ma_{nv_tag}', ma_nganh_nv)
-                                setattr(ts, f'nv_{nv_tag}', str(stt))
-
-                                ts.kq_TT = 'D'
-                                ts.ma_TT = ma_nganh_nv
-                                ts.nv_TT = str(stt)
-
-                                if hasattr(ts, 'diem_thi_TT'):
-                                    ts.diem_thi_TT = ky_thi_val
-
-                                if hasattr(ts, 'diem_xet_tuyen'):
-                                    ts.diem_xet_tuyen = diem_ts
-
-                                da_trung_tuyen = True
-                                break
-                            else:
-                                setattr(ts, f'kq_{nv_tag}', 'Trượt')
-
-                        if not da_trung_tuyen:
-                            ts.kq_TT = 'Trượt'
-                            ts.ma_TT = ts.nv_TT = None
-                            if hasattr(ts, 'diem_thi_TT'):
-                                ts.diem_thi_TT = None
-
-                        batch.append(ts)
-
-                        # Đủ CHUNK_SIZE (1000 bản ghi) thì thực hiện đẩy xuống DB và giải phóng RAM
-                        if len(batch) >= CHUNK_SIZE:
-                            ThiSinhData.objects.bulk_update(batch, valid_update_fields)
-                            batch.clear()
-
-                    # Cập nhật lô còn dư cuối cùng
-                    if batch:
-                        ThiSinhData.objects.bulk_update(batch, valid_update_fields)
-                        batch.clear()
+                    ThiSinhData.objects.bulk_update(thi_sinh_cap_nhat, valid_update_fields)
 
             messages.success(request, 'Đã tính toán xét tuyển và cập nhật số liệu thành công!')
 
-  
-        # 3. Đồng bộ dữ liệu sang bảng mẫu in giấy báo (Bổ sung trích xuất SĐT/dien_thoai)
+        # 3. Đồng bộ dữ liệu sang bảng mẫu in giấy báo
         elif action == 'import_3_tables':
             try:
                 def parse_num(val):
@@ -1213,6 +1204,7 @@ def diem_chuan(request):
                     ccta_val = getattr(ts, 'ccta', None) if hasattr(ts, 'ccta') else getattr(ts, 'CCTA', None)
                     so_diem_ccqt_val = str(ccta_val).strip() if ccta_val is not None and str(ccta_val).strip() != '' else None
                     
+                    # Trích xuất 2 trường bổ sung theo yêu cầu
                     tong_diem_val = parse_num(
                         getattr(ts, 'diem_xet_tuyen', None)
                         or getattr(ts, 'diem_xt', None)
@@ -1225,43 +1217,26 @@ def diem_chuan(request):
                         or getattr(ts, 'diem_cong', None)
                     )
 
-                    # Trích xuất SĐT từ ThiSinhData sang CapNhatThongTinTrungTuyen nếu có
-                    sdt_ts = (
-                        getattr(ts, 'dien_thoai', None)
-                        or getattr(ts, 'sdt', None)
-                        or getattr(ts, 'dien_thoai_sv', None)
-                        or getattr(ts, 'dien_thoai_dd', None)
-                    )
-                    sdt_ts_val = str(sdt_ts).strip() if sdt_ts is not None and str(sdt_ts).strip() != '' else None
-
                     if cccd_norm in existing_cap_nhat:
                         obj = existing_cap_nhat[cccd_norm]
                         obj.so_diem_ccqt = so_diem_ccqt_val
                         obj.tong_diem = tong_diem_val
                         obj.dtc0_pt2 = dtc0_pt2_val
-                        if sdt_ts_val and hasattr(obj, 'dien_thoai'):
-                            obj.dien_thoai = sdt_ts_val
                         to_update_cntt.append(obj)
                     else:
-                        cntt_kwargs = {
-                            'cccd': cccd_norm,
-                            'so_diem_ccqt': so_diem_ccqt_val,
-                            'tong_diem': tong_diem_val,
-                            'dtc0_pt2': dtc0_pt2_val,
-                        }
-                        if hasattr(CapNhatThongTinTrungTuyen, 'dien_thoai'):
-                            cntt_kwargs['dien_thoai'] = sdt_ts_val
-                        to_create_cntt.append(CapNhatThongTinTrungTuyen(**cntt_kwargs))
+                        to_create_cntt.append(CapNhatThongTinTrungTuyen(
+                            cccd=cccd_norm,
+                            so_diem_ccqt=so_diem_ccqt_val,
+                            tong_diem=tong_diem_val,
+                            dtc0_pt2=dtc0_pt2_val
+                        ))
 
                 if to_create_cntt:
                     CapNhatThongTinTrungTuyen.objects.bulk_create(to_create_cntt, batch_size=500)
                 if to_update_cntt:
-                    update_fields = ['so_diem_ccqt', 'tong_diem', 'dtc0_pt2']
-                    if hasattr(CapNhatThongTinTrungTuyen, 'dien_thoai'):
-                        update_fields.append('dien_thoai')
                     CapNhatThongTinTrungTuyen.objects.bulk_update(
                         to_update_cntt, 
-                        update_fields, 
+                        ['so_diem_ccqt', 'tong_diem', 'dtc0_pt2'], 
                         batch_size=500
                     )
 
@@ -1342,18 +1317,6 @@ def diem_chuan(request):
                     cntt_obj = cap_nhat_dict.get(cccd)
                     email_val = cntt_obj.email_sv if cntt_obj and getattr(cntt_obj, 'email_sv', None) else ''
                     ma_sv_val = cntt_obj.mssv if cntt_obj and getattr(cntt_obj, 'mssv', None) else ''
-
-                    # TRÍCH XUẤT ĐIỆN THOẠI (SĐT)
-                    dien_thoai_val = (
-                        (getattr(cntt_obj, 'dien_thoai', None) or getattr(cntt_obj, 'sdt', None)) if cntt_obj else None
-                    ) or (
-                        getattr(ts, 'dien_thoai', None)
-                        or getattr(ts, 'sdt', None)
-                        or getattr(ts, 'dien_thoai_sv', None)
-                        or getattr(ts, 'dien_thoai_dd', None)
-                        or ''
-                    )
-                    dien_thoai_val = str(dien_thoai_val).strip()
 
                     ho_ten = str(getattr(ts, 'ho_ten', '') or '').strip()
                     ma_dkxt = getattr(cntt_obj, 'ma_dkxt', None) if cntt_obj and getattr(cntt_obj, 'ma_dkxt', None) else ''
@@ -1445,17 +1408,20 @@ def diem_chuan(request):
                         getattr(ts, 'diem_tb_cac_nam_hoc', None) or getattr(ts, 'Diem_tb_cac_nam_hoc', None)
                     )
 
+                    # PT2_DiemQD: từ diem_thi_hoc_ba
                     pt2_diem_qd = parse_num(
                         getattr(ts, 'diem_thi_hoc_ba', None)
                         or getattr(ts, 'diem_thi_Hoc_ba', None)
                         or getattr(ts, 'diem_thi_hocba', None)
                     )
 
+                    # PT2_QD: từ diem_xet_tuyen
                     pt2_qd = parse_num(
                         getattr(ts, 'diem_xet_tuyen', None)
                         or getattr(ts, 'diem_xt', None)
                     )
 
+                    # DTC0: từ diem_thi_hoc_ba_diem_cong
                     dtc0 = parse_num(
                         getattr(ts, 'diem_thi_hoc_ba_diem_cong', None)
                         or getattr(ts, 'diem_thi_Hoc_ba_Diem_cong', None)
@@ -1480,7 +1446,7 @@ def diem_chuan(request):
                         pt2_diem_cong = f"- Chứng chỉ tiếng Anh quốc tế: IELTS {ccta}"
 
                     records_to_insert.append((
-                        cccd, ho_ten, email_val, dien_thoai_val, ma_dkxt, ngay_sinh, dtut, kvut, hoc_ba,
+                        cccd, ho_ten, email_val, ma_dkxt, ngay_sinh, dtut, kvut, hoc_ba,
                         ptxt, phuong_thuc_xet, ctdt,
                         pt2_tn_thm, pt2_tn_mamon1, pt2_tn_diemmon1,
                         pt2_tn_mamon2, pt2_tn_diemmon2,
@@ -1493,13 +1459,13 @@ def diem_chuan(request):
                         ma_sv_val, barcode, dtc0, dc, pt2_diem_cong
                     ))
 
-                # BƯỚC 4: Chèn dữ liệu hàng loạt vào mau_import_giay_bao (Gồm trường dien_thoai)
+                # BƯỚC 4: Chèn dữ liệu hàng loạt vào mau_import_giay_bao
                 with connection.cursor() as cursor:
-                    MauImportGiayBao.objects.all().delete()
+                    cursor.execute("DELETE FROM mau_import_giay_bao;")
                     if records_to_insert:
                         sql_insert = """
                             INSERT INTO mau_import_giay_bao (
-                                `cccd`, `ho_ten`, `email`, `dien_thoai`, `ma_dkxt`, `ngay_sinh`, `dtut`, `kvut`, `hoc_ba`,
+                                `cccd`, `ho_ten`, `email`, `ma_dkxt`, `ngay_sinh`, `dtut`, `kvut`, `hoc_ba`,
                                 `ptxt`, `phuong_thuc_xet`, `ctdt`,
                                 `pt2_tn_thm`, `pt2_tn_mamon1`, `pt2_tn_diemmon1`,
                                 `pt2_tn_mamon2`, `pt2_tn_diemmon2`,
@@ -1511,7 +1477,7 @@ def diem_chuan(request):
                                 `pt2a_diemtbthpt`, `pt2_diem_qd`, `pt2_qd`,
                                 `ma_sv`, `barcode`, `dtc0`, `dc`, `pt2_diem_cong`
                             ) VALUES (
-                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s,
                                 %s, %s, %s,
                                 %s, %s, %s,
                                 %s, %s,
@@ -1615,6 +1581,7 @@ def diem_chuan(request):
         'tong_nv3': tong_nv3,
     }
     return render(request, 'xettuyen/diem_chuan.html', context)
+
 
 
 @custom_login_required
