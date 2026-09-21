@@ -816,24 +816,38 @@ def import_to_hop_mon(request):
             rows = list(ws.iter_rows(values_only=True))
 
             if len(rows) > 1:
-                with connection.cursor() as cursor:
-                    for i, row in enumerate(rows[1:], 1):
-                        if not row or not any(row):
-                            continue
-                        ma_to_hop = str(row[0] or '').strip()
-                        ten_to_hop = str(row[1] or '').strip()
-                        ma_mon = str(row[2] or '').strip()
+                objects_to_create = []
 
-                        if ma_to_hop:
-                            cursor.execute("""
-                                INSERT INTO thm (stt, ma_to_hop_mon, ten_to_hop_mon, ma_mon_thi)
-                                VALUES (%s, %s, %s, %s)
-                                ON DUPLICATE KEY UPDATE ten_to_hop_mon=%s, ma_mon_thi=%s
-                            """, [i, ma_to_hop, ten_to_hop, ma_mon, ten_to_hop, ma_mon])
+                for i, row in enumerate(rows[1:], 1):
+                    if not row or not any(row):
+                        continue
 
-                messages.success(request, "Import danh sách tổ hợp môn thành công!")
+                    ma_to_hop = str(row[0] or '').strip()
+                    ten_to_hop = str(row[1] or '').strip()
+                    ma_mon = str(row[2] or '').strip()
+
+                    if ma_to_hop:
+                        objects_to_create.append(
+                            ToHopMon(
+                                stt=i,
+                                ma_to_hop_mon=ma_to_hop,
+                                ten_to_hop_mon=ten_to_hop,
+                                ma_mon_thi=ma_mon,
+                            )
+                        )
+
+                if objects_to_create:
+                    # Tối ưu truy vấn: Lưu/Cập nhật hàng loạt trong 1 Query duy nhất
+                    ToHopMon.objects.bulk_create(
+                        objects_to_create,
+                        update_conflicts=True,
+                        unique_fields=['ma_to_hop_mon'],  # Cột trùng khóa chính/unique
+                        update_fields=['ten_to_hop_mon', 'ma_mon_thi'],  # Các cột cần cập nhật lại khi bị trùng
+                    )
+
+                messages.success(request, 'Import danh sách tổ hợp môn thành công!')
         except Exception as e:
-            messages.error(request, f"Lỗi khi import file Excel: {str(e)}")
+            messages.error(request, f'Lỗi khi import file Excel: {str(e)}')
 
     return redirect('to_hop_mon')
 
