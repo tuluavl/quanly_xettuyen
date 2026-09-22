@@ -822,14 +822,17 @@ def import_to_hop_mon(request):
                     if not row or not any(row):
                         continue
 
-                    ma_to_hop = str(row[0] or '').strip()
-                    ten_to_hop = str(row[1] or '').strip()
-                    ma_mon = str(row[2] or '').strip()
+                    # Đọc chính xác thứ tự 4 cột trong file Excel:
+                    # row[0]: STT | row[1]: Mã tổ hợp | row[2]: Tên tổ hợp | row[3]: Mã môn thi
+                    stt_val = row[0] if row[0] is not None else i
+                    ma_to_hop = str(row[1] or '').strip()
+                    ten_to_hop = str(row[2] or '').strip()
+                    ma_mon = str(row[3] or '').strip() if len(row) > 3 else ''
 
                     if ma_to_hop:
                         objects_to_create.append(
                             ToHopMon(
-                                stt=i,
+                                stt=stt_val,
                                 ma_to_hop_mon=ma_to_hop,
                                 ten_to_hop_mon=ten_to_hop,
                                 ma_mon_thi=ma_mon,
@@ -837,15 +840,18 @@ def import_to_hop_mon(request):
                         )
 
                 if objects_to_create:
-                    # Tối ưu truy vấn: Lưu/Cập nhật hàng loạt trong 1 Query duy nhất
-                    ToHopMon.objects.bulk_create(
-                        objects_to_create,
-                        update_conflicts=True,
-                        unique_fields=['ma_to_hop_mon'],  # Cột trùng khóa chính/unique
-                        update_fields=['ten_to_hop_mon', 'ma_mon_thi'],  # Các cột cần cập nhật lại khi bị trùng
-                    )
+                    with transaction.atomic():
+                        # Xóa toàn bộ dữ liệu danh mục cũ để nạp lại danh mục mới chính xác
+                        ToHopMon.objects.all().delete()
 
-                messages.success(request, 'Import danh sách tổ hợp môn thành công!')
+                        # Thêm hàng loạt an toàn, tương thích tuyệt đối mọi CSDL
+                        ToHopMon.objects.bulk_create(
+                            objects_to_create, batch_size=500
+                        )
+
+                messages.success(
+                    request, 'Import danh sách tổ hợp môn thành công!'
+                )
         except Exception as e:
             messages.error(request, f'Lỗi khi import file Excel: {str(e)}')
 
