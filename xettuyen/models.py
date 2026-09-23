@@ -354,8 +354,9 @@ class MauImportGiayBao(models.Model):
 
     def __str__(self):
         return f"{self.ho_ten} - {self.cccd}"
+        
 class ToHopMon(models.Model): # Thay tên class theo đúng file models.py của bạn
-    stt = models.IntegerField()
+    stt = models.IntegerField(default=0, null=True, blank=True)
     ma_to_hop_mon = models.CharField(max_length=10)
     ten_to_hop_mon = models.CharField(max_length=255)
     ma_mon_thi = models.CharField(max_length=255)
