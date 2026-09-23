@@ -778,6 +778,38 @@ def manage_users(request):
     }
     return render(request, 'xettuyen/manage_users.html', context)
     
+#PHÂN HỆ QUẢN LÝ TỔ HỢP MÔN
+@custom_login_required
+@check_permission('to_hop_mon')
+def to_hop_mon(request):
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT stt, ma_to_hop_mon, ten_to_hop_mon, ma_mon_thi FROM thm ORDER BY ma_to_hop_mon ASC")
+        rows = cursor.fetchall()
+
+    danh_sach = []
+    for row in rows:
+        ma_mon_raw = str(row[3] or '').strip()
+        if ',' in ma_mon_raw:
+            mon_list = [m.strip() for m in ma_mon_raw.split(',')]
+        elif '-' in ma_mon_raw:
+            mon_list = [m.strip() for m in ma_mon_raw.split('-')]
+        else:
+            mon_list = ma_mon_raw.split()
+
+        danh_sach.append({
+            'stt': row[0],
+            'ma_to_hop': row[1] or '',
+            'ten_to_hop': row[2] or '',
+            'mon_1': mon_list[0] if len(mon_list) > 0 else '',
+            'mon_2': mon_list[1] if len(mon_list) > 1 else '',
+            'mon_3': mon_list[2] if len(mon_list) > 2 else '',
+        })
+
+    return render(request, 'xettuyen/to_hop_mon.html', {
+        'danh_sach': danh_sach,
+        'tong_so': len(danh_sach)
+    })
+
 #IMPORT TỔ HỢP MÔN
 @custom_login_required
 @check_permission('import_to_hop_mon')
