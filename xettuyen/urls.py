@@ -50,7 +50,7 @@ urlpatterns = [
     path('to-hop-mon/export/', views.xuat_excel_to_hop_mon, name='xuat_excel_to_hop_mon'),
     path('to-hop-mon/sua/<str:ma_to_hop>/', views.sua_to_hop_mon, name='sua_to_hop_mon'),
     path('to-hop-mon/xoa/<str:ma_to_hop>/', views.xoa_to_hop_mon, name='xoa_to_hop_mon'),
-    
+    path('truong-thpt/xuat-excel/', views.xuat_excel_truong_thpt, name='xuat_excel_truong_thpt'),
     # Các đường dẫn VSAT
 
     path('diem-vsat/', views.danh_sach_diem_vsat, name='danh_sach_diem_vsat'),
