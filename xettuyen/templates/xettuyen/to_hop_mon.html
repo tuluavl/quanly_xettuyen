@@ -25,17 +25,28 @@
     <div class="d-flex gap-2 mb-3">
         
 		{% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'import_to_hop_mon' in request.session.permissions %}
-    <button type="button" class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#importModal">
-        <i class="fas fa-file-import me-1"></i>Import dữ liệu
-    </button>
-	{% endif %}
-        		{% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'export_to_hop_mon' in request.session.permissions %}
-<a href="{% url 'xuat_excel_to_hop_mon' %}" 
-           class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1"
-           onclick="thongBaoXuatExcel()">
-            <i class="fas fa-file-excel me-1 mr-1"></i> Xuất danh sách tổ hợp
-        </a>
-			{% endif %}
+            <button type="button" class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="fas fa-file-import me-1"></i>Import dữ liệu
+            </button>
+        {% endif %}
+
+		{% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'export_to_hop_mon' in request.session.permissions %}
+            <a href="{% url 'xuat_excel_to_hop_mon' %}" 
+               class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1"
+               onclick="thongBaoXuatExcel()">
+                <i class="fas fa-file-excel me-1 mr-1"></i> Xuất danh sách tổ hợp
+            </a>
+		{% endif %}
+
+        <!-- NÚT XÓA TOÀN BỘ DỮ LIỆU -->
+        {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_to_hop_mon' in request.session.permissions %}
+            <form id="form-xoa-toan-bo" method="POST" action="{% url 'xoa_tat_ca_to_hop_mon' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="button" id="btn-xoa-toan-bo" class="btn btn-danger btn-sm fw-bold px-3 py-1">
+                    <i class="fas fa-trash-alt me-1 mr-1"></i> Xóa toàn bộ
+                </button>
+            </form>
+        {% endif %}
 
     </div>
 
@@ -61,7 +72,7 @@
                     <td class="text-center">{{ row.mon_2 }}</td>
                     <td class="text-center">{{ row.mon_3 }}</td>
                     <td class="text-center">
-                        <!-- Nút Sửa: Kiểm tra quyền Admin hoặc edit_to_hop_mon -->
+                        <!-- Nút Sửa -->
                         {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'sua_to_hop_mon' in request.session.permissions %}
                             <button type="button" class="btn btn-warning btn-xs px-2 py-0 me-1" title="Sửa" 
                                     data-bs-toggle="modal" data-bs-target="#editModal{{ row.ma_to_hop }}">
@@ -69,11 +80,11 @@
                             </button>
                         {% endif %}
 
-                        <!-- Nút Xóa: Kiểm tra quyền Admin hoặc delete_to_hop_mon -->
+                        <!-- Nút Xóa từng dòng -->
                         {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_to_hop_mon' in request.session.permissions %}
-                            <form method="POST" action="{% url 'xoa_to_hop_mon' row.ma_to_hop %}" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa tổ hợp {{ row.ma_to_hop }}?');">
+                            <form method="POST" action="{% url 'xoa_to_hop_mon' row.ma_to_hop %}" class="d-inline form-xoa-don" data-ma="{{ row.ma_to_hop }}">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-danger btn-xs px-2 py-0" title="Xóa">
+                                <button type="button" class="btn btn-danger btn-xs px-2 py-0 btn-xoa-don" title="Xóa">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             </form>
@@ -147,8 +158,11 @@
     </div>
 </div>
 
+<!-- SWEETALERT2 VÀ KỊCH BẢN XỬ LÝ HỘP THOẠI -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    window.addEventListener('load', function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Khởi tạo DataTable
         if (typeof jQuery !== 'undefined' && $.fn.DataTable) {
             $.fn.dataTable.ext.errMode = 'none';
 
@@ -162,7 +176,7 @@
                 "searching": true,
                 "lengthChange": true,
                 "pageLength": 20,
-                "lengthMenu": [[20, 25, 50, 100, -1], [20,25, 50, 100, "Tất cả"]],
+                "lengthMenu": [[20, 25, 50, 100, -1], [20, 25, 50, 100, "Tất cả"]],
                 "language": {
                     "lengthMenu": "Xem _MENU_ dòng trên một trang",
                     "zeroRecords": "Không tìm thấy dữ liệu tổ hợp môn phù hợp",
@@ -177,6 +191,63 @@
                 }
             });
         }
+
+        // 2. Xử lý Hộp thoại SweetAlert2 cho nút "Xóa toàn bộ"
+        let btnXoaToanBo = document.getElementById('btn-xoa-toan-bo');
+        if (btnXoaToanBo) {
+            btnXoaToanBo.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Xác nhận xóa toàn bộ?',
+                    html: '<b class="text-danger">CẢNH BÁO:</b> Bạn có chắc chắn muốn <b>XÓA TOÀN BỘ</b> dữ liệu tổ hợp môn không?<br><span class="text-muted small">Hành động này sẽ không thể hoàn tác!</span>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Đồng ý xóa toàn bộ',
+                    cancelButtonText: 'Hủy bỏ',
+                    customClass: {
+                        popup: 'rounded-4 shadow',
+                        confirmButton: 'btn btn-danger px-3 py-2 me-2',
+                        cancelButton: 'btn btn-secondary px-3 py-2'
+                    },
+                    buttonsStyling: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        document.getElementById('form-xoa-toan-bo').submit();
+                    }
+                });
+            });
+        }
+
+        // 3. Xử lý Hộp thoại SweetAlert2 cho từng nút "Xóa đơn" trong bảng
+        document.addEventListener('click', function(e) {
+            let btnXoa = e.target.closest('.btn-xoa-don');
+            if (btnXoa) {
+                let form = btnXoa.closest('.form-xoa-don');
+                let maToHop = form.getAttribute('data-ma');
+
+                Swal.fire({
+                    title: 'Xóa tổ hợp môn?',
+                    html: `Bạn có chắc chắn muốn xóa tổ hợp môn <b>${maToHop}</b> không?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Xóa',
+                    cancelButtonText: 'Hủy',
+                    customClass: {
+                        popup: 'rounded-4 shadow',
+                        confirmButton: 'btn btn-danger px-3 py-2 me-2',
+                        cancelButton: 'btn btn-secondary px-3 py-2'
+                    },
+                    buttonsStyling: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
+            }
+        });
     });
 </script>
 {% endblock %}
