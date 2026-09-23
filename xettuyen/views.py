@@ -1043,6 +1043,8 @@ def danh_sach_diem_vsat(request):
         'stats_to_hop': stats_to_hop,
         'total_count': total_count,
     })
+    
+#SỬA ĐIỂM VSAT
 @custom_login_required
 @check_permission('sua_diem_vsat')
 def sua_diem_vsat(request, pk):
@@ -1083,7 +1085,7 @@ def sua_diem_vsat(request, pk):
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Lỗi: {str(e)}'}, status=400)
 
-
+#XÓA ĐIỂM VSAT
 @custom_login_required
 @check_permission('xoa_diem_vsat')
 def xoa_diem_vsat(request, pk):
@@ -1093,6 +1095,219 @@ def xoa_diem_vsat(request, pk):
         item.delete()
         return JsonResponse({'success': True, 'message': 'Xóa dữ liệu thành công!'})
     return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ!'}, status=400)
+ 
+
+#IMPORT ĐIỂM VSAT
+ 
+@custom_login_required
+@check_permission('import_diem_vsat')
+def import_diem_vsat(request):
+    """Hàm xử lý riêng cho Import Excel điểm V-SAT (Tương thích mọi CSDL)"""
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        file_excel = request.FILES['excel_file']
+        try:
+            df = pd.read_excel(file_excel, sheet_name=0)
+
+            # Chuẩn hóa tên cột để tra cứu không phân biệt hoa thường/khoảng trắng
+            df.columns = [str(c).strip().lower() for c in df.columns]
+
+            def parse_float(val):
+                try:
+                    if pd.isna(val) or str(val).strip().lower() in ['', 'nan', 'none']:
+                        return None
+                    return float(val)
+                except:
+                    return None
+
+            # Xác định tên cột CCCD và Họ Tên
+            col_cccd = next((c for c in df.columns if 'cccd' in c or 'so_cccd' in c), None)
+            col_hoten = next((c for c in df.columns if 'ho_ten' in c or 'họ tên' in c or 'hoten' in c), None)
+
+            if not col_cccd or not col_hoten:
+                start_idx = 1 if 'id' in df.columns[0] else 0
+                col_cccd = df.columns[start_idx]
+                col_hoten = df.columns[start_idx + 1]
+
+            def get_val(row, col_name, fallback_idx):
+                if col_name in df.columns:
+                    return parse_float(row[col_name])
+                elif len(row) > fallback_idx:
+                    return parse_float(row.iloc[fallback_idx])
+                return None
+
+            # 1. Khử trùng lặp theo CCCD ngay từ file Excel
+            excel_data = {}
+            for _, row in df.iterrows():
+                raw_cccd = str(row[col_cccd]).strip().split('.')[0]
+                if not raw_cccd or raw_cccd.lower() in ['nan', 'none', '']:
+                    continue
+
+                cccd = raw_cccd.zfill(12) if len(raw_cccd) < 12 and raw_cccd.isdigit() else raw_cccd
+                ho_ten = str(row[col_hoten]).strip()
+
+                excel_data[cccd] = {
+                    'ho_ten': ho_ten,
+                    'di_vs': get_val(row, 'di_vs', 3),
+                    'ho_vs': get_val(row, 'ho_vs', 4),
+                    'li_vs': get_val(row, 'li_vs', 5),
+                    'n1_vs': get_val(row, 'n1_vs', 6),
+                    'si_vs': get_val(row, 'si_vs', 7),
+                    'su_vs': get_val(row, 'su_vs', 8),
+                    'to_vs': get_val(row, 'to_vs', 9),
+                    'va_vs': get_val(row, 'va_vs', 10),
+                    'diem_thi_vsat_max': get_val(row, 'diem_thi_vsat_max', 24),
+                }
+
+            # 2. Lấy dữ liệu điểm V-SAT hiện có trong CSDL
+            existing_objs = {
+                obj.so_cccd: obj 
+                for obj in DiemThiVsat.objects.all()
+            }
+
+            to_create = []
+            to_update = []
+
+            # 3. Phân loại danh sách Thêm mới và Cập nhật
+            for cccd, data in excel_data.items():
+                if cccd in existing_objs:
+                    # Đã có trong CSDL -> Cập nhật thông tin điểm
+                    obj = existing_objs[cccd]
+                    obj.ho_ten = data['ho_ten']
+                    obj.di_vs = data['di_vs']
+                    obj.ho_vs = data['ho_vs']
+                    obj.li_vs = data['li_vs']
+                    obj.n1_vs = data['n1_vs']
+                    obj.si_vs = data['si_vs']
+                    obj.su_vs = data['su_vs']
+                    obj.to_vs = data['to_vs']
+                    obj.va_vs = data['va_vs']
+                    obj.diem_thi_vsat_max = data['diem_thi_vsat_max']
+                    to_update.append(obj)
+                else:
+                    # Chưa có -> Thêm mới bản ghi
+                    to_create.append(
+                        DiemThiVsat(
+                            so_cccd=cccd,
+                            ho_ten=data['ho_ten'],
+                            di_vs=data['di_vs'],
+                            ho_vs=data['ho_vs'],
+                            li_vs=data['li_vs'],
+                            n1_vs=data['n1_vs'],
+                            si_vs=data['si_vs'],
+                            su_vs=data['su_vs'],
+                            to_vs=data['to_vs'],
+                            va_vs=data['va_vs'],
+                            diem_thi_vsat_max=data['diem_thi_vsat_max'],
+                        )
+                    )
+
+            # 4. Thực thi Lưu/Cập nhật hàng loạt
+            if to_create:
+                DiemThiVsat.objects.bulk_create(to_create)
+
+            if to_update:
+                DiemThiVsat.objects.bulk_update(
+                    to_update,
+                    fields=['ho_ten', 'di_vs', 'ho_vs', 'li_vs', 'n1_vs', 'si_vs', 'su_vs', 'to_vs', 'va_vs', 'diem_thi_vsat_max']
+                )
+
+            messages.success(
+                request, 
+                f"Import thành công! Thêm mới: {len(to_create)} thí sinh, Cập nhật: {len(to_update)} thí sinh."
+            )
+        except Exception as e:
+            messages.error(request, f"Lỗi khi import điểm V-SAT: {str(e)}")
+
+    return redirect('danh_sach_diem_vsat')
+# -------------------------------------------------------------
+# XUẤT EXCEL ĐIỂM VSAT (BỔ SUNG MỚI)
+# -------------------------------------------------------------
+@custom_login_required
+@check_permission('xuat_excel_diem_vsat')
+def xuat_excel_diem_vsat(request):
+    """Hàm xuất toàn bộ danh sách điểm thi V-SAT ra file Excel"""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Diem_VSAT"
+
+    # Danh sách tiêu đề các cột
+    headers = [
+        'STT', 'Số CCCD', 'Họ tên', 'Địa', 'Hóa', 'Lý', 'Anh', 'Sinh', 'Sử', 'Toán', 'Văn',
+        'Max Môn', 'A00', 'Quy đổi A00', 'A01', 'Quy đổi A01', 'D01', 'Quy đổi D01',
+        'D07', 'Quy đổi D07', 'D09', 'Quy đổi D09', 'D14', 'Quy đổi D14', 'VSAT Max'
+    ]
+    
+    # Định dạng Header
+    header_font = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='F39C12', end_color='F39C12', fill_type='solid')
+    alignment_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin', color='D3D3D3'),
+        right=Side(style='thin', color='D3D3D3'),
+        top=Side(style='thin', color='D3D3D3'),
+        bottom=Side(style='thin', color='D3D3D3')
+    )
+
+    ws.append(headers)
+    for col_num in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = alignment_center
+        cell.border = thin_border
+
+    # Duyệt dữ liệu từ CSDL
+    queryset = DiemThiVsat.objects.all()
+    for idx, item in enumerate(queryset, start=1):
+        row_data = [
+            idx,
+            item.so_cccd,
+            item.ho_ten,
+            item.di_vs,
+            item.ho_vs,
+            item.li_vs,
+            item.n1_vs,
+            item.si_vs,
+            item.su_vs,
+            item.to_vs,
+            item.va_vs,
+            item.max_score,
+            item.thmon_a00_vsat,
+            item.quy_doi_a00,
+            item.thmon_a01_vsat,
+            item.quy_doi_a01,
+            item.thmon_d01_vsat,
+            item.quy_doi_d01,
+            item.thmon_d07_vsat,
+            item.quy_doi_d07,
+            item.thmon_d09_vsat,
+            item.quy_doi_d09,
+            item.thmon_d14_vsat,
+            item.quy_doi_d14,
+            item.diem_thi_vsat_max
+        ]
+        ws.append(row_data)
+
+    # Căn giữa dữ liệu và vẽ khung
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.border = thin_border
+            if cell.column != 3:  # Trừ cột Họ tên cho căn trái
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+
+    # Tự động chỉnh độ rộng cột
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 10)
+
+    # Trả về Response file Excel
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="Danh_sach_diem_VSAT.xlsx"'
+    wb.save(response)
+    return response
 
 #QUẢN LÝ ĐIỂM CHUẨN
 @custom_login_required
@@ -3877,59 +4092,7 @@ def map_diem_vsat_theo_to_hop(vsat_obj, ma_to_hop):
     return None, None, None
 
 
-@custom_login_required
-@check_permission('import_diem_vsat')
-def import_diem_vsat(request):
-    """Hàm xử lý riêng cho Import Excel điểm V-SAT"""
-    if request.method == 'POST' and request.FILES.get('excel_file'):
-        file_excel = request.FILES['excel_file']
-        try:
-            df = pd.read_excel(file_excel, sheet_name=0)
 
-            def parse_float(val):
-                try:
-                    if pd.isna(val) or str(val).strip().lower() in ['', 'nan', 'none']:
-                        return None
-                    return float(val)
-                except:
-                    return None
-
-            danh_sach_vsat = []
-            for _, row in df.iterrows():
-                raw_cccd = str(row.iloc[0]).strip().split('.')[0]
-                if not raw_cccd or raw_cccd.lower() in ['nan', 'none', '']:
-                    continue
-
-                cccd = raw_cccd.zfill(12) if len(raw_cccd) < 12 and raw_cccd.isdigit() else raw_cccd
-                ho_ten = str(row.iloc[1]).strip()
-
-                danh_sach_vsat.append(DiemThiVsat(
-                    so_cccd=cccd,
-                    ho_ten=ho_ten,
-                    di_vs=parse_float(row.iloc[2]) if len(row) > 2 else None,
-                    ho_vs=parse_float(row.iloc[3]) if len(row) > 3 else None,
-                    li_vs=parse_float(row.iloc[4]) if len(row) > 4 else None,
-                    n1_vs=parse_float(row.iloc[5]) if len(row) > 5 else None,
-                    si_vs=parse_float(row.iloc[6]) if len(row) > 6 else None,
-                    su_vs=parse_float(row.iloc[7]) if len(row) > 7 else None,
-                    to_vs=parse_float(row.iloc[8]) if len(row) > 8 else None,
-                    va_vs=parse_float(row.iloc[9]) if len(row) > 9 else None,
-                ))
-
-            if danh_sach_vsat:
-                DiemThiVsat.objects.bulk_create(
-                    danh_sach_vsat,
-                    update_conflicts=True,
-                    update_fields=['ho_ten', 'di_vs', 'ho_vs', 'li_vs', 'n1_vs', 'si_vs', 'su_vs', 'to_vs', 'va_vs'],
-                    unique_fields=['so_cccd']
-                )
-                messages.success(request, f"Đã import thành công {len(danh_sach_vsat)} bản ghi điểm V-SAT!")
-        except Exception as e:
-            messages.error(request, f"Lỗi khi import điểm V-SAT: {str(e)}")
-
-        return redirect(request.META.get('HTTP_REFERER', '/'))
-
-    return redirect('index')
 
 
 
