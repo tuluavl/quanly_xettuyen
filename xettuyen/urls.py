@@ -29,30 +29,26 @@ urlpatterns = [
     path('in-giay-bao/<str:cccd>/', views.in_giay_bao, name='in_giay_bao'),
     path('tra-cuu/giay-bao-mat/', views.in_giay_bao_sinh_vien, name='in_giay_bao_sinh_vien'),
     path('quan-ly/luu-cau-hinh-giay-bao/', views.luu_cau_hinh_giay_bao, name='luu_cau_hinh_giay_bao'),
-    
-    
-    
     path('export-all-pdf/start/', views.start_export_all_pdf, name='start_export_all_pdf'),
     path('export-all-pdf/status/<str:task_id>/', views.check_export_status, name='check_export_status'),
     path('export-all-pdf/download/<str:task_id>/', views.download_export_zip, name='download_export_zip'),
     
     # Các đường dẫn danh sach truong THPT
-
     path('truong-thpt/', views.danh_sach_truong_thpt, name='danh_sach_truong_thpt'),
     path('truong-thpt/xoa/<int:id>/', views.xoa_truong_thpt, name='xoa_truong_thpt'),
     path('truong-thpt/sua/<int:id>/', views.sua_truong_thpt, name='sua_truong_thpt'),
     path('truong-thpt/import/', views.import_to_hop_mon, name='import_truong_thpt'),
     path('truong-thpt/xuat-excel/', views.xuat_excel_truong_thpt, name='xuat_excel_truong_thpt'),    
+    
     # Các đường dẫn THM
- 
-    path('to-hop-mon/', views.to_hop_mon, name='to_hop_mon'),
+     path('to-hop-mon/', views.to_hop_mon, name='to_hop_mon'),
     path('to-hop-mon/import/', views.import_to_hop_mon, name='import_to_hop_mon'),
     path('to-hop-mon/export/', views.xuat_excel_to_hop_mon, name='xuat_excel_to_hop_mon'),
     path('to-hop-mon/sua/<str:ma_to_hop>/', views.sua_to_hop_mon, name='sua_to_hop_mon'),
     path('to-hop-mon/xoa/<str:ma_to_hop>/', views.xoa_to_hop_mon, name='xoa_to_hop_mon'),
-    path('truong-thpt/xuat-excel/', views.xuat_excel_truong_thpt, name='xuat_excel_truong_thpt'),
+    path('to-hop-mon/xoa-tat-ca/', views.xoa_tat_ca_to_hop_mon, name='xoa_tat_ca_to_hop_mon'),
+    
     # Các đường dẫn VSAT
-
     path('diem-vsat/', views.danh_sach_diem_vsat, name='danh_sach_diem_vsat'),
     path('diem-vsat/import/', views.import_diem_vsat, name='import_diem_vsat'),
     path('diem-vsat/sua/<int:pk>/', views.sua_diem_vsat, name='sua_diem_vsat'),
@@ -74,14 +70,10 @@ urlpatterns = [
     
     
    # Các đường dẫn export nhập học
-
     path('export/import-nhap-hoc/', views.export_excel_import_nhap_hoc, name='export_import_nhap_hoc'),
     path('export/hoso-trung-tuyen/', views.export_excel_hoso_trung_tuyen, name='export_hoso_trung_tuyen'),
     
-    
-       # Các đường dẫn cập nhật thông tin trúng tuyển
-
-    
+   # Các đường dẫn cập nhật thông tin trúng tuyển  
     path('cap-nhat-trung-tuyen/', views.danh_sach_cap_nhat_trung_tuyen, name='danh_sach_cap_nhat_trung_tuyen'),
     path('cap-nhat-trung-tuyen/sua/<int:pk>/', views.sua_cap_nhat_trung_tuyen, name='sua_cap_nhat_trung_tuyen'),
     path('cap-nhat-trung-tuyen/xoa/<int:pk>/', views.xoa_cap_nhat_trung_tuyen, name='xoa_cap_nhat_trung_tuyen'),
@@ -89,7 +81,7 @@ urlpatterns = [
     path('cap-nhat-trung-tuyen/import/', views.danh_sach_cap_nhat_trung_tuyen, name='import_cap_nhat_trung_tuyen'),
 
 
- # Tuyến đường cho sinh viên tra cứu
+    # Tuyến đường cho sinh viên tra cứu
     path('tra-cuu/', views.sinh_vien_login, name='sinh_vien_login'),
     path('tra-cuu/ket-qua/', views.sinh_vien_dashboard, name='sinh_vien_dashboard'),
     path('tra-cuu/logout/', views.sinh_vien_logout, name='sinh_vien_logout'),
