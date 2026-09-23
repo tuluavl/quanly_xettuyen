@@ -65,6 +65,8 @@ urlpatterns = [
     path('import-bo-sung/', views.import_bo_sung_trung_tuyen, name='import_bo_sung_trung_tuyen'),
     path('xuat-excel-trung-tuyen/', views.xuat_excel_trung_tuyen, name='xuat_excel_trung_tuyen'),
     path('export-sms/', views.export_sms, name='export_sms'),
+    path('trung-tuyen/sua/<int:pk>/', views.sua_trung_tuyen, name='sua_trung_tuyen'),
+    path('trung-tuyen/xoa/<int:pk>/', views.xoa_trung_tuyen, name='xoa_trung_tuyen'),
     
     # Các đường dẫn cập nhật bổ sung thông tin nhập học
     path('dong-bo-thong-tin-trung-tuyen/', views.dong_bo_thong_tin_trung_tuyen, name='dong_bo_thong_tin_trung_tuyen'),

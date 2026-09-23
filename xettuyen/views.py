@@ -49,11 +49,12 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.safestring import mark_safe
 from .models import CustomUser, Role, RolePermission, Permission, ThiSinhData, KetQuaLocAo, ToHopMon, TruongTHPT, DiemThiVsat, MauImportGiayBao, CapNhatThongTinTrungTuyen, CauHinhGiayBao, AuditLog, UserProfile
 from .decorators import custom_login_required, check_permission
 from django.contrib.auth.decorators import login_required
 
-
+from decimal import Decimal, InvalidOperation
 from django.contrib.auth import get_user_model
 User = get_user_model()  # Tự động lấy CustomUser
 
@@ -300,14 +301,19 @@ def index(request):
         # Không đủ điều kiện = Tổng số thí sinh có ĐK xét Luật - Số thí sinh đủ điều kiện
         luat_khong_du_dieu_kien = max(0, xet_luat_co_dk - luat_du_dieu_kien)
 
-        # 4. Thống kê Phương thức xét tuyển (PTXT)
-        ptxt_dgnl = qs.filter(diem_DGNL__gt=0).count()
-        ptxt_vsat = qs.filter(diem_VSAT__gt=0).count()
-        ptxt_thpt = qs.filter(
-            (Q(diem_DGNL__isnull=True) | Q(diem_DGNL=0)) & 
-            (Q(diem_VSAT__isnull=True) | Q(diem_VSAT=0))
+        
+        # 4. Thống kê Phương thức xét tuyển (PTXT) dựa trên cột diem_thi_TT
+        ptxt_dgnl = qs.filter(
+            Q(diem_thi_TT__icontains='DGNL') | Q(diem_thi_TT__icontains='ĐGNL')
         ).count()
 
+        ptxt_vsat = qs.filter(
+            Q(diem_thi_TT__icontains='VSAT') | Q(diem_thi_TT__icontains='V-SAT')
+        ).count()
+
+        ptxt_thpt = qs.filter(
+            Q(diem_thi_TT__icontains='THPT')
+        ).count()
         headers = [field.name for field in ThiSinhData._meta.fields]
         danh_sach = list(qs.values())
 
@@ -822,17 +828,14 @@ def import_to_hop_mon(request):
                     if not row or not any(row):
                         continue
 
-                    # Đọc chính xác thứ tự 4 cột trong file Excel:
-                    # row[0]: STT | row[1]: Mã tổ hợp | row[2]: Tên tổ hợp | row[3]: Mã môn thi
-                    stt_val = row[0] if row[0] is not None else i
-                    ma_to_hop = str(row[1] or '').strip()
-                    ten_to_hop = str(row[2] or '').strip()
-                    ma_mon = str(row[3] or '').strip() if len(row) > 3 else ''
+                    ma_to_hop = str(row[0] or '').strip()
+                    ten_to_hop = str(row[1] or '').strip()
+                    ma_mon = str(row[2] or '').strip()
 
                     if ma_to_hop:
                         objects_to_create.append(
                             ToHopMon(
-                                stt=stt_val,
+                                stt=i,
                                 ma_to_hop_mon=ma_to_hop,
                                 ten_to_hop_mon=ten_to_hop,
                                 ma_mon_thi=ma_mon,
@@ -840,18 +843,15 @@ def import_to_hop_mon(request):
                         )
 
                 if objects_to_create:
-                    with transaction.atomic():
-                        # Xóa toàn bộ dữ liệu danh mục cũ để nạp lại danh mục mới chính xác
-                        ToHopMon.objects.all().delete()
+                    # Tối ưu truy vấn: Lưu/Cập nhật hàng loạt trong 1 Query duy nhất
+                    ToHopMon.objects.bulk_create(
+                        objects_to_create,
+                        update_conflicts=True,
+                        unique_fields=['ma_to_hop_mon'],  # Cột trùng khóa chính/unique
+                        update_fields=['ten_to_hop_mon', 'ma_mon_thi'],  # Các cột cần cập nhật lại khi bị trùng
+                    )
 
-                        # Thêm hàng loạt an toàn, tương thích tuyệt đối mọi CSDL
-                        ToHopMon.objects.bulk_create(
-                            objects_to_create, batch_size=500
-                        )
-
-                messages.success(
-                    request, 'Import danh sách tổ hợp môn thành công!'
-                )
+                messages.success(request, 'Import danh sách tổ hợp môn thành công!')
         except Exception as e:
             messages.error(request, f'Lỗi khi import file Excel: {str(e)}')
 
@@ -1163,7 +1163,7 @@ def diem_chuan(request):
 
             messages.success(request, 'Đã tính toán xét tuyển và cập nhật số liệu thành công!')
 
-        # 3. Đồng bộ dữ liệu sang bảng mẫu in giấy báo
+        # 3. Đồng bộ dữ liệu sang bảng mẫu in giấy báo (Bổ sung trích xuất SĐT/dien_thoai)
         elif action == 'import_3_tables':
             try:
                 def parse_num(val):
@@ -1210,7 +1210,6 @@ def diem_chuan(request):
                     ccta_val = getattr(ts, 'ccta', None) if hasattr(ts, 'ccta') else getattr(ts, 'CCTA', None)
                     so_diem_ccqt_val = str(ccta_val).strip() if ccta_val is not None and str(ccta_val).strip() != '' else None
                     
-                    # Trích xuất 2 trường bổ sung theo yêu cầu
                     tong_diem_val = parse_num(
                         getattr(ts, 'diem_xet_tuyen', None)
                         or getattr(ts, 'diem_xt', None)
@@ -1223,26 +1222,43 @@ def diem_chuan(request):
                         or getattr(ts, 'diem_cong', None)
                     )
 
+                    # Trích xuất SĐT từ ThiSinhData sang CapNhatThongTinTrungTuyen nếu có
+                    sdt_ts = (
+                        getattr(ts, 'dien_thoai', None)
+                        or getattr(ts, 'sdt', None)
+                        or getattr(ts, 'dien_thoai_sv', None)
+                        or getattr(ts, 'dien_thoai_dd', None)
+                    )
+                    sdt_ts_val = str(sdt_ts).strip() if sdt_ts is not None and str(sdt_ts).strip() != '' else None
+
                     if cccd_norm in existing_cap_nhat:
                         obj = existing_cap_nhat[cccd_norm]
                         obj.so_diem_ccqt = so_diem_ccqt_val
                         obj.tong_diem = tong_diem_val
                         obj.dtc0_pt2 = dtc0_pt2_val
+                        if sdt_ts_val and hasattr(obj, 'dien_thoai'):
+                            obj.dien_thoai = sdt_ts_val
                         to_update_cntt.append(obj)
                     else:
-                        to_create_cntt.append(CapNhatThongTinTrungTuyen(
-                            cccd=cccd_norm,
-                            so_diem_ccqt=so_diem_ccqt_val,
-                            tong_diem=tong_diem_val,
-                            dtc0_pt2=dtc0_pt2_val
-                        ))
+                        cntt_kwargs = {
+                            'cccd': cccd_norm,
+                            'so_diem_ccqt': so_diem_ccqt_val,
+                            'tong_diem': tong_diem_val,
+                            'dtc0_pt2': dtc0_pt2_val,
+                        }
+                        if hasattr(CapNhatThongTinTrungTuyen, 'dien_thoai'):
+                            cntt_kwargs['dien_thoai'] = sdt_ts_val
+                        to_create_cntt.append(CapNhatThongTinTrungTuyen(**cntt_kwargs))
 
                 if to_create_cntt:
                     CapNhatThongTinTrungTuyen.objects.bulk_create(to_create_cntt, batch_size=500)
                 if to_update_cntt:
+                    update_fields = ['so_diem_ccqt', 'tong_diem', 'dtc0_pt2']
+                    if hasattr(CapNhatThongTinTrungTuyen, 'dien_thoai'):
+                        update_fields.append('dien_thoai')
                     CapNhatThongTinTrungTuyen.objects.bulk_update(
                         to_update_cntt, 
-                        ['so_diem_ccqt', 'tong_diem', 'dtc0_pt2'], 
+                        update_fields, 
                         batch_size=500
                     )
 
@@ -1323,6 +1339,18 @@ def diem_chuan(request):
                     cntt_obj = cap_nhat_dict.get(cccd)
                     email_val = cntt_obj.email_sv if cntt_obj and getattr(cntt_obj, 'email_sv', None) else ''
                     ma_sv_val = cntt_obj.mssv if cntt_obj and getattr(cntt_obj, 'mssv', None) else ''
+
+                    # TRÍCH XUẤT ĐIỆN THOẠI (SĐT)
+                    dien_thoai_val = (
+                        (getattr(cntt_obj, 'dien_thoai', None) or getattr(cntt_obj, 'sdt', None)) if cntt_obj else None
+                    ) or (
+                        getattr(ts, 'dien_thoai', None)
+                        or getattr(ts, 'sdt', None)
+                        or getattr(ts, 'dien_thoai_sv', None)
+                        or getattr(ts, 'dien_thoai_dd', None)
+                        or ''
+                    )
+                    dien_thoai_val = str(dien_thoai_val).strip()
 
                     ho_ten = str(getattr(ts, 'ho_ten', '') or '').strip()
                     ma_dkxt = getattr(cntt_obj, 'ma_dkxt', None) if cntt_obj and getattr(cntt_obj, 'ma_dkxt', None) else ''
@@ -1408,26 +1436,26 @@ def diem_chuan(request):
                                 f3 = vsat_field_map.get(mon_list[2])
                                 pt2_vsat_diemmon3 = parse_num(getattr(vsat_obj, f3, None)) if f3 else None
 
-                    pt2_dgnl = parse_num(getattr(ts, 'diem_DGNL', None))
-
+                    
+                    pt2_dgnl = None
+                    if 'DGNL' in ptxt.upper() or 'ĐGNL' in ptxt.upper():
+                        pt2_dgnl = parse_num(getattr(ts, 'diem_DGNL', None))
+                    
                     pt2a_diemtbthpt = parse_num(
                         getattr(ts, 'diem_tb_cac_nam_hoc', None) or getattr(ts, 'Diem_tb_cac_nam_hoc', None)
                     )
 
-                    # PT2_DiemQD: từ diem_thi_hoc_ba
                     pt2_diem_qd = parse_num(
                         getattr(ts, 'diem_thi_hoc_ba', None)
                         or getattr(ts, 'diem_thi_Hoc_ba', None)
                         or getattr(ts, 'diem_thi_hocba', None)
                     )
 
-                    # PT2_QD: từ diem_xet_tuyen
                     pt2_qd = parse_num(
                         getattr(ts, 'diem_xet_tuyen', None)
                         or getattr(ts, 'diem_xt', None)
                     )
 
-                    # DTC0: từ diem_thi_hoc_ba_diem_cong
                     dtc0 = parse_num(
                         getattr(ts, 'diem_thi_hoc_ba_diem_cong', None)
                         or getattr(ts, 'diem_thi_Hoc_ba_Diem_cong', None)
@@ -1452,7 +1480,7 @@ def diem_chuan(request):
                         pt2_diem_cong = f"- Chứng chỉ tiếng Anh quốc tế: IELTS {ccta}"
 
                     records_to_insert.append((
-                        cccd, ho_ten, email_val, ma_dkxt, ngay_sinh, dtut, kvut, hoc_ba,
+                        cccd, ho_ten, email_val, dien_thoai_val, ma_dkxt, ngay_sinh, dtut, kvut, hoc_ba,
                         ptxt, phuong_thuc_xet, ctdt,
                         pt2_tn_thm, pt2_tn_mamon1, pt2_tn_diemmon1,
                         pt2_tn_mamon2, pt2_tn_diemmon2,
@@ -1465,25 +1493,27 @@ def diem_chuan(request):
                         ma_sv_val, barcode, dtc0, dc, pt2_diem_cong
                     ))
 
-                # BƯỚC 4: Chèn dữ liệu hàng loạt vào mau_import_giay_bao
+                # BƯỚC 4: Chèn dữ liệu hàng loạt vào mau_import_giay_bao (Gồm trường dien_thoai)
                 with connection.cursor() as cursor:
                     cursor.execute("DELETE FROM mau_import_giay_bao;")
                     if records_to_insert:
                         sql_insert = """
                             INSERT INTO mau_import_giay_bao (
-                                `cccd`, `ho_ten`, `email`, `ma_dkxt`, `ngay_sinh`, `dtut`, `kvut`, `hoc_ba`,
-                                `ptxt`, `phuong_thuc_xet`, `ctdt`,
-                                `pt2_tn_thm`, `pt2_tn_mamon1`, `pt2_tn_diemmon1`,
-                                `pt2_tn_mamon2`, `pt2_tn_diemmon2`,
-                                `pt2_tn_mamon3`, `pt2_tn_diemmon3`,
-                                `pt2_dgnl`,
-                                `pt2_vsat_thm`, `pt2_vsat_mamon1`, `pt2_vsat_diemmon1`,
-                                `pt2_vsat_mamon2`, `pt2_vsat_diemmon2`,
-                                `pt2_vsat_mamon3`, `pt2_vsat_diemmon3`,
-                                `pt2a_diemtbthpt`, `pt2_diem_qd`, `pt2_qd`,
-                                `ma_sv`, `barcode`, `dtc0`, `dc`, `pt2_diem_cong`
+                                
+                                cccd, ho_ten, email, dien_thoai, ma_dkxt, ngay_sinh, dtut, kvut, hoc_ba,
+                                ptxt, phuong_thuc_xet, ctdt,
+                                pt2_tn_thm, pt2_tn_mamon1, pt2_tn_diemmon1,
+                                pt2_tn_mamon2, pt2_tn_diemmon2,
+                                pt2_tn_mamon3, pt2_tn_diemmon3,
+                                pt2_dgnl,
+                                pt2_vsat_thm, pt2_vsat_mamon1, pt2_vsat_diemmon1,
+                                pt2_vsat_mamon2, pt2_vsat_diemmon2,
+                                pt2_vsat_mamon3, pt2_vsat_diemmon3,
+                                pt2a_diemtbthpt, pt2_diem_qd, pt2_qd,
+                                ma_sv, barcode, dtc0, dc, pt2_diem_cong
+                                
                             ) VALUES (
-                                %s, %s, %s, %s, %s, %s, %s, %s,
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s,
                                 %s, %s, %s,
                                 %s, %s, %s,
                                 %s, %s,
@@ -1496,14 +1526,21 @@ def diem_chuan(request):
                                 %s, %s, %s, %s, %s
                             )
                         """
-                        cursor.executemany(sql_insert, records_to_insert)
+                        # Chia batch 500 bản ghi/lần để bảo vệ bộ nhớ và bộ đệm kết nối DB
+                        batch_size = 500
+                        for i in range(0, len(records_to_insert), batch_size):
+                            batch = records_to_insert[i:i + batch_size]
+                            cursor.executemany(sql_insert, batch)
 
                 messages.success(request, f'Đã cập nhật bảng thông tin trúng tuyển và đồng bộ thành công {len(records_to_insert)} thí sinh vào bảng mẫu in giấy báo!')
+            
             except Exception as e:
                 messages.error(request, f'Lỗi đồng bộ dữ liệu: {str(e)}')
 
         else:
-            messages.success(request, 'Đã lưu điểm chuẩn thành công!')
+            messages.success(request, 'Đã lưu điểm chuẩn thành công!')   
+            
+
 
     # 4. Thống kê hiển thị ra màn hình
     ds_loc_ao = KetQuaLocAo.objects.all()
@@ -1626,7 +1663,9 @@ def export_diem_chuan(request):
     return response
 
 
-# View DANH SÁCH TRÚNG TUYỂN
+# -------------------------------------------------------------------
+# VIEW DANH SÁCH TRÚNG TUYỂN
+# -------------------------------------------------------------------
 @custom_login_required
 @check_permission('danh_sach_trung_tuyen')
 def danh_sach_trung_tuyen(request):
@@ -1646,7 +1685,9 @@ def danh_sach_trung_tuyen(request):
     return render(request, 'xettuyen/danh_sach_trung_tuyen.html', context)
 
 
+# -------------------------------------------------------------------
 # 1. TẠO MASV & BARCODE KHÔNG TRÙNG CHO SINH VIÊN MỚI
+# -------------------------------------------------------------------
 @custom_login_required
 @check_permission('tao_ma_sv')
 def tao_ma_sv(request):
@@ -1656,10 +1697,7 @@ def tao_ma_sv(request):
             messages.error(request, "Tiền tố Mã SV phải gồm đúng 7 chữ số!")
             return redirect('danh_sach_trung_tuyen')
 
-        # Bao bọc toàn bộ quá trình tính toán và cập nhật trong Transaction
         with transaction.atomic():
-            # 1. Khóa dòng các thí sinh chưa có Mã SV bằng select_for_update()
-            # Giúp ngăn chặn các thao tác đồng thời gây trùng lặp mã (Race Condition)
             ts_moi = list(
                 MauImportGiayBao.objects.select_for_update().filter(
                     Q(ma_sv__isnull=True) | Q(ma_sv='')
@@ -1671,7 +1709,6 @@ def tao_ma_sv(request):
                 messages.warning(request, "Tất cả thí sinh trong hệ thống đều đã có Mã SV!")
                 return redirect('danh_sach_trung_tuyen')
 
-            # 2. Tìm STT lớn nhất hiện tại theo tiền tố
             max_stt = 0
             existing_masv = MauImportGiayBao.objects.filter(
                 ma_sv__startswith=prefix
@@ -1683,7 +1720,6 @@ def tao_ma_sv(request):
                     if suffix.isdigit():
                         max_stt = max(max_stt, int(suffix))
 
-            # 3. Gán giá trị vào RAM
             stt = max_stt + 1
             for ts in ts_moi:
                 ma_sv_moi = f"{prefix}{stt:04d}"
@@ -1692,22 +1728,62 @@ def tao_ma_sv(request):
                 ts.barcode = ma_sv_moi
                 stt += 1
 
-            # 4. Tối ưu ghi CSDL: Cập nhật hàng loạt (Bulk Update) thay vì ts.save() từng dòng
             MauImportGiayBao.objects.bulk_update(
                 ts_moi, 
                 ['IDSV', 'ma_sv', 'barcode'], 
                 batch_size=1000
             )
 
-        messages.success(
-            request, 
-            f"Đã tạo tiếp MaSV từ số {max_stt + 1:04d} đến {stt - 1:04d} cho {total_moi} thí sinh mới!"
-        )
+            messages.success(
+                request, 
+                f"Đã tạo tiếp MaSV từ số {max_stt + 1:04d} đến {stt - 1:04d} cho {total_moi} thí sinh mới!"
+            )
 
     return redirect('danh_sach_trung_tuyen')
+# -------------------------------------------------------------------
+# CHỈNH SỬA THÔNG TIN THÍ SINH TRÚNG TUYỂN
+# -------------------------------------------------------------------
+@custom_login_required
+@check_permission('danh_sach_trung_tuyen')
+def sua_trung_tuyen(request, pk):
+    ts = get_object_or_404(MauImportGiayBao, pk=pk)
+    if request.method == 'POST':
+        # Danh sách tất cả các trường trong Model MauImportGiayBao
+        fields = [
+            'IDSV', 'so_cv', 'ho_ten', 'email', 'dien_thoai', 'ma_dkxt', 'ngay_sinh',
+            'dtut', 'kvut', 'hoc_ba', 'phuong_thuc_xet', 'ptxt', 'ctdt', 'pt2_diem_cong',
+            'pt2_tn_thm', 'pt2_tn_mamon1', 'pt2_tn_diemmon1', 'pt2_tn_mamon2', 'pt2_tn_diemmon2',
+            'pt2_tn_mamon3', 'pt2_tn_diemmon3', 'pt2_dgnl', 'pt2_vsat_thm', 'pt2_vsat_mamon1',
+            'pt2_vsat_diemmon1', 'pt2_vsat_mamon2', 'pt2_vsat_diemmon2', 'pt2_vsat_mamon3',
+            'pt2_vsat_diemmon3', 'pt2a_diemtbthpt', 'pt2_diem_qd', 'pt2_qd', 'cccd',
+            'ma_sv', 'barcode', 'dtc0', 'dc', 'page'
+        ]
+        
+        for field in fields:
+            val = request.POST.get(field, '').strip()
+            # Nếu để trống thì lưu None (Null trong DB)
+            setattr(ts, field, val if val != '' else None)
+            
+        ts.save()
+        messages.success(request, f"Đã cập nhật thành công thông tin thí sinh {ts.ho_ten}!")
+    return redirect('danh_sach_trung_tuyen')
 
+# -------------------------------------------------------------------
+# XÓA THÍ SINH KHỎI DANH SÁCH TRÚNG TUYỂN
+# -------------------------------------------------------------------
+@custom_login_required
+@check_permission('danh_sach_trung_tuyen')
+def xoa_trung_tuyen(request, pk):
+    if request.method == 'POST':
+        ts = get_object_or_404(MauImportGiayBao, pk=pk)
+        ho_ten = ts.ho_ten
+        ts.delete()
+        messages.success(request, f"Đã xóa thí sinh {ho_ten} khỏi danh sách trúng tuyển!")
+    return redirect('danh_sach_trung_tuyen')
 
-# 2. CẬP NHẬT SỐ CV & PAGE TỰ ĐỘNG NỐI TIẾP SỐ CŨ
+# -------------------------------------------------------------------
+# 2. CẬP NHẬT SỐ CV & PAGE TỰ ĐỘNG NỐI TIẾP SỐ CŨ (ĐÃ TỐI ƯU BULK_UPDATE)
+# -------------------------------------------------------------------
 @custom_login_required
 @check_permission('cap_nhat_so_cv')
 def cap_nhat_so_cv(request):
@@ -1716,13 +1792,13 @@ def cap_nhat_so_cv(request):
         cap_nhat_lai_tat_ca = request.POST.get('mode_all') == '1'
 
         if cap_nhat_lai_tat_ca:
-            danh_sach = MauImportGiayBao.objects.all().order_by('id')
+            danh_sach = list(MauImportGiayBao.objects.all().order_by('id'))
         else:
-            danh_sach = MauImportGiayBao.objects.filter(
+            danh_sach = list(MauImportGiayBao.objects.filter(
                 Q(so_cv__isnull=True) | Q(so_cv='')
-            ).order_by('id')
+            ).order_by('id'))
 
-        total = danh_sach.count()
+        total = len(danh_sach)
         if total == 0:
             messages.warning(request, "Không có thí sinh nào cần gán Số CV!")
             return redirect('danh_sach_trung_tuyen')
@@ -1746,7 +1822,12 @@ def cap_nhat_so_cv(request):
                 current_value = start_num + index
                 ts.so_cv = str(current_value)
                 ts.page = current_value
-                ts.save(update_fields=['so_cv', 'page'])
+
+            MauImportGiayBao.objects.bulk_update(
+                danh_sach, 
+                ['so_cv', 'page'], 
+                batch_size=1000
+            )
 
         messages.success(
             request, 
@@ -1755,105 +1836,11 @@ def cap_nhat_so_cv(request):
     return redirect('danh_sach_trung_tuyen')
 
 
-# 3. IMPORT BỔ SUNG THÔNG TIN THÍ SINH
-VALID_DB_COLUMNS = {
-    'IDSV',
-    'so_cv',
-    'ho_ten',
-    'email',
-    'dien_thoai',
-    'ma_dkxt',
-    'ngay_sinh',
-    'dtut',
-    'kvut',
-    'hoc_ba',
-    'phuong_thuc_xet',
-    'ptxt',
-    'ctdt',
-    'pt2_diem_cong',
-    'pt2_tn_thm',
-    'pt2_tn_mamon1',
-    'pt2_tn_diemmon1',
-    'pt2_tn_mamon2',
-    'pt2_tn_diemmon2',
-    'pt2_tn_mamon3',
-    'pt2_tn_diemmon3',
-    'pt2_dgnl',
-    'pt2_vsat_thm',
-    'pt2_vsat_mamon1',
-    'pt2_vsat_diemmon1',
-    'pt2_vsat_mamon2',
-    'pt2_vsat_diemmon2',
-    'pt2_vsat_mamon3',
-    'pt2_vsat_diemmon3',
-    'pt2a_diemtbthpt',
-    'pt2_diem_qd',
-    'pt2_qd',
-    'cccd',
-    'ma_sv',
-    'barcode',
-    'dtc0',
-    'dc',
-    'page',
-}
-
-EXCEL_TO_MAU_GIAY_BAO = {
-    'số cv': 'so_cv',
-    'so_cv': 'so_cv',
-    'họ tên': 'ho_ten',
-    'ho_ten': 'ho_ten',
-    'email': 'email',
-    'điện thoại': 'dien_thoai',
-    'số điện thoại': 'dien_thoai',
-    'dien_thoai': 'dien_thoai',
-    'sdt': 'dien_thoai',
-    'sđt': 'dien_thoai',
-    'mã đkxt': 'ma_dkxt',
-    'ma_dkxt': 'ma_dkxt',
-    'ngày sinh': 'ngay_sinh',
-    'ngay_sinh': 'ngay_sinh',
-    'đtut': 'dtut',
-    'kvut': 'kvut',
-    'đối tượng xét': 'phuong_thuc_xet',
-    'phương thức xét': 'phuong_thuc_xet',
-    'ptxt': 'ptxt',
-    'ctđt': 'ctdt',
-    'ctdt': 'ctdt',
-    'Điểm cộng': 'pt2_diem_cong',
-    'diem cong': 'pt2_diem_cong',
-    'pt2_diem_cong': 'pt2_diem_cong',
-    'học bạ': 'hoc_ba',
-    'hoc_ba': 'hoc_ba',
-    'thm tn': 'pt2_tn_thm',
-    'môn 1 (tn)': 'pt2_tn_mamon1',
-    'điểm 1': 'pt2_tn_diemmon1',
-    'môn 2 (tn)': 'pt2_tn_mamon2',
-    'điểm 2': 'pt2_tn_diemmon2',
-    'môn 3 (tn)': 'pt2_tn_mamon3',
-    'điểm 3': 'pt2_tn_diemmon3',
-    'điểm đgnl': 'pt2_dgnl',
-    'thm vsat': 'pt2_vsat_thm',
-    'môn 1 (vsat)': 'pt2_vsat_mamon1',
-    'điểm 1.1': 'pt2_vsat_diemmon1',
-    'môn 2 (vsat)': 'pt2_vsat_mamon2',
-    'điểm 2.1': 'pt2_vsat_diemmon2',
-    'môn 3 (vsat)': 'pt2_vsat_mamon3',
-    'điểm 3.1': 'pt2_vsat_diemmon3',
-    'điểm tb thpt': 'pt2a_diemtbthpt',
-    'điểm qđ 1': 'pt2_diem_qd',
-    'điểm qđ 2': 'pt2_qd',
-    'điểm cộng 0': 'dtc0',
-    'dtc0': 'dtc0',
-    'điểm chuẩn': 'dc',
-    'cccd': 'cccd',
-    'mã sv': 'ma_sv',
-    'ma_sv': 'ma_sv',
-    'barcode': 'barcode',
-    'page': 'page',
-}
-# 1. CẬP NHẬT NÚT ĐỒNG BỘ DỮ LIỆU BỔ SUNG
+# -------------------------------------------------------------------
+# 3. ĐỒNG BỘ DỮ LIỆU BỔ SUNG SANG MẪU GiẤY BÁO
+# -------------------------------------------------------------------
 @custom_login_required
-@check_permission('ds_trung_tuyen')
+@check_permission('danh_sach_trung_tuyen')  # Đã chuẩn hóa tên permission
 def dong_bo_thong_tin_trung_tuyen(request):
     """Đồng bộ dữ liệu bổ sung từ CapNhatThongTinTrungTuyen sang MauImportGiayBao qua CCCD"""
     if request.method == 'POST':
@@ -1877,7 +1864,6 @@ def dong_bo_thong_tin_trung_tuyen(request):
                 email_val = getattr(src, 'email', None) or getattr(src, 'email_sv', None) or ''
                 ma_dkxt_val = getattr(src, 'ma_dkxt', None) or ''
 
-                # Xử lý định dạng ngày sinh về dd/mm/YYYY
                 ngay_sinh_raw = getattr(src, 'ngay_sinh', None)
                 ngay_sinh_val = ''
 
@@ -1895,7 +1881,6 @@ def dong_bo_thong_tin_trung_tuyen(request):
                     if not ngay_sinh_val:
                         ngay_sinh_val = ngay_sinh_str
 
-                # Cập nhật chính xác các trường theo yêu cầu
                 if masv_val:
                     item.IDSV = masv_val
                 if mssv_val:
@@ -2199,268 +2184,220 @@ def parse_date(val):
 
 
 # ------------------------------------------------------------------
-# VIEW XỬ LÝ
+# VIEW XỬ LÝ CẬP NHẬT THÔNG TIN TRÚNG TUYỂN
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+# HÀM BỔ TRỢ
+# ------------------------------------------------------------------
+def get_val(row, *keys):
+    """
+    Hàm lấy giá trị an toàn từ row (Pandas Series), chống ném lỗi KeyError 
+    khi key không tồn tại trong file Excel.
+    """
+    for key in keys:
+        if key in row.index and pd.notna(row[key]):
+            val = str(row[key]).strip()
+            if val and val.lower() not in ['nan', 'none', 'null', 'nat']:
+                return val
+    return None
+
+
+# ------------------------------------------------------------------
+# VIEW XỬ LÝ CHÍNH
 # ------------------------------------------------------------------
 @custom_login_required
 @check_permission('ds_cap_nhat_trung_tuyen')
 def danh_sach_cap_nhat_trung_tuyen(request):
-  if request.method == 'POST' and (
-      request.FILES.get('file_excel') or request.FILES.get('excel_file')
-  ):
-    file_excel = request.FILES.get('file_excel') or request.FILES.get(
-        'excel_file'
-    )
-    try:
-      df = pd.read_excel(file_excel, sheet_name=0, dtype=str)
-      df.columns = df.columns.str.strip()
+    # ------------------------------------------------------------------
+    # 1. XỬ LÝ IMPORT FILE EXCEL (POST)
+    # ------------------------------------------------------------------
+    if request.method == 'POST' and (request.FILES.get('file_excel') or request.FILES.get('excel_file')):
+        file_excel = request.FILES.get('file_excel') or request.FILES.get('excel_file')
+        try:
+            df = pd.read_excel(file_excel, sheet_name=0, dtype=str)
+            df.columns = df.columns.str.strip()
 
-      dict_trung_tuyen = {}
-      for _, row in df.iterrows():
-        raw_cccd = (
-            get_val(row, 'cccd')
-            or get_val(row, 'CCCD')
-            or get_val(row, 'Số CCCD')
-        )
-        if not raw_cccd or raw_cccd.lower() in ['nan', 'none', '']:
-          continue
+            # Lấy danh sách CCCD hợp lệ từ bảng mau_import_giay_bao (Danh sách trúng tuyển)
+            set_cccd_trung_tuyen = set()
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT DISTINCT cccd FROM mau_import_giay_bao WHERE cccd IS NOT NULL AND cccd != ''")
+                raw_cccds = [r[0] for r in cursor.fetchall() if r[0]]
 
-        cccd = (
-            raw_cccd.zfill(12)
-            if len(raw_cccd) < 12 and raw_cccd.isdigit()
-            else raw_cccd
-        )
+            # Chuẩn hóa tập hợp CCCD trúng tuyển (đủ 12 chữ số)
+            for c in raw_cccds:
+                c_str = str(c).strip()
+                if c_str.isdigit() and len(c_str) < 12:
+                    c_str = c_str.zfill(12)
+                if c_str:
+                    set_cccd_trung_tuyen.add(c_str)
 
-        kwargs = {
-            'cccd': cccd,
-            'ma_dkxt': get_val(row, 'ma_dkxt') or get_val(row, 'Mã ĐKXT'),
-            'sbd': (
-                get_val(row, 'sbd')
-                or get_val(row, 'SBD')
-                or get_val(row, 'Số báo danh')
-            ),
-            'ma_noi_sinh': (
-                get_val(row, 'ma_noi_sinh')
-                or get_val(row, 'MaNoiSinh')
-                or get_val(row, 'Mã nơi sinh')
-            ),
-            'ten_giai_hsg': (
-                get_val(row, 'ten_giai_hsg')
-                or get_val(row, 'TenGiaiHSG')
-                or get_val(row, 'Tên giải HSG')
-            ),
-            'ten_mon_hsg': (
-                get_val(row, 'ten_mon_hsg')
-                or get_val(row, 'TenMonHSG')
-                or get_val(row, 'Tên môn HSG')
-            ),
-            'ten_hang_hsg': (
-                get_val(row, 'ten_hang_hsg')
-                or get_val(row, 'TenHangHSG')
-                or get_val(row, 'Tên hạng HSG')
-            ),
-            'nam_hsg': (
-                get_val(row, 'nam_hsg')
-                or get_val(row, 'NamHSG')
-                or get_val(row, 'Năm HSG')
-            ),
-            'ngay_sinh': parse_date(
-                get_val(row, 'ngay_sinh') or get_val(row, 'Ngày sinh')
-            ),
-            'gioi_tinh': get_val(row, 'gioi_tinh') or get_val(row, 'Giới tính'),
-            'dan_toc': get_val(row, 'dan_toc') or get_val(row, 'Dân tộc'),
-            'email_sv': get_val(row, 'email_sv') or get_val(row, 'Email SV'),
-            # Sửa lỗi: Lấy đúng cột điện thoại thay vì lặp lại email_sv
-            'dien_thoai': (
-                get_val(row, 'dien_thoai')
-                or get_val(row, 'DienThoai')
-                or get_val(row, 'Điện thoại')
-                or get_val(row, 'Số điện thoại')
-                or get_val(row, 'SDT')
-            ),
-            'mssv': get_val(row, 'mssv') or get_val(row, 'MSSV'),
-            'mat_khau_online': get_val(row, 'mat_khau_online')
-            or get_val(row, 'Mật khẩu Online'),
-            'email_ueh': get_val(row, 'email_ueh') or get_val(row, 'Email UEH'),
-            'mat_khau_email': get_val(row, 'mat_khau_email')
-            or get_val(row, 'Mật khẩu Email'),
-            'tong_diem': parse_float(
-                get_val(row, 'tong_diem') or get_val(row, 'Tổng điểm')
-            ),
-            'dtc0_pt1': parse_float(
-                get_val(row, 'dtc0_pt1') or get_val(row, 'ĐTC0 PT1')
-            ),
-            'dtc0_pt2': parse_float(
-                get_val(row, 'dtc0_pt2') or get_val(row, 'ĐTC0 PT2')
-            ),
-            'loai_ccqt_uid': (
-                get_val(row, 'loai_ccqt_uid')
-                or get_val(row, 'LoaiCCQTUID')
-                or get_val(row, 'Loại CCQT UID')
-            ),
-            'so_diem_ccqt': parse_float(
-                get_val(row, 'so_diem_ccqt') or get_val(row, 'Số điểm CCQT')
-            ),
-            'ngay_thi_ccqt': parse_date(
-                get_val(row, 'ngay_thi_ccqt') or get_val(row, 'Ngày thi CCQT')
-            ),
-            'ngay_thi_ccqt_new': parse_date(
-                get_val(row, 'ngay_thi_ccqt_new')
-                or get_val(row, 'Ngày thi CCQT Mới')
-            ),
-            'diem_tb_lop10': parse_float(
-                get_val(row, 'diem_tb_lop10') or get_val(row, 'ĐTB Lớp 10')
-            ),
-            'diem_tb_lop11': parse_float(
-                get_val(row, 'diem_tb_lop11') or get_val(row, 'ĐTB Lớp 11')
-            ),
-            'diem_tb_lop12': parse_float(
-                get_val(row, 'diem_tb_lop12') or get_val(row, 'ĐTB Lớp 12')
-            ),
-        }
+            dict_trung_tuyen = {}
+            dem_bo_qua = 0
 
-        if hasattr(CapNhatThongTinTrungTuyen, 'ho_ten'):
-          kwargs['ho_ten'] = (
-              get_val(row, 'ho_ten')
-              or get_val(row, 'Họ và tên')
-              or get_val(row, 'Họ tên')
-          )
+            for _, row in df.iterrows():
+                raw_cccd = get_val(row, 'cccd', 'CCCD', 'Số CCCD')
+                if not raw_cccd:
+                    continue
 
-        dict_trung_tuyen[cccd] = CapNhatThongTinTrungTuyen(**kwargs)
+                # Chuẩn hóa CCCD từ file Excel
+                cccd = raw_cccd.zfill(12) if len(raw_cccd) < 12 and raw_cccd.isdigit() else raw_cccd
 
-      danh_sach_trung_tuyen = list(dict_trung_tuyen.values())
+                # Bỏ qua nếu CCCD không có trong danh sách trúng tuyển (mau_import_giay_bao)
+                if cccd not in set_cccd_trung_tuyen:
+                    dem_bo_qua += 1
+                    continue
 
-      if danh_sach_trung_tuyen:
-        with transaction.atomic():
-          CapNhatThongTinTrungTuyen.objects.all().delete()
-          CapNhatThongTinTrungTuyen.objects.bulk_create(
-              danh_sach_trung_tuyen, batch_size=1000
-          )
-        messages.success(
-            request,
-            f'Đã import thành công {len(danh_sach_trung_tuyen)} dòng dữ liệu!',
-        )
-      else:
-        messages.warning(
-            request, 'Không tìm thấy dữ liệu hợp lệ trong file Excel!'
-        )
+                kwargs = {
+                    'cccd': cccd,
+                    'ma_dkxt': get_val(row, 'ma_dkxt', 'Mã ĐKXT'),
+                    'sbd': get_val(row, 'sbd', 'SBD', 'Số báo danh'),
+                    'ma_noi_sinh': get_val(row, 'ma_noi_sinh', 'MaNoiSinh', 'Mã nơi sinh'),
+                    'ten_giai_hsg': get_val(row, 'ten_giai_hsg', 'TenGiaiHSG', 'Tên giải HSG'),
+                    'ten_mon_hsg': get_val(row, 'ten_mon_hsg', 'TenMonHSG', 'Tên môn HSG'),
+                    'ten_hang_hsg': get_val(row, 'ten_hang_hsg', 'TenHangHSG', 'Tên hạng HSG'),
+                    'nam_hsg': get_val(row, 'nam_hsg', 'NamHSG', 'Năm HSG'),
+                    'ngay_sinh': parse_date(get_val(row, 'ngay_sinh', 'Ngày sinh')),
+                    'gioi_tinh': get_val(row, 'gioi_tinh', 'Giới tính'),
+                    'dan_toc': get_val(row, 'dan_toc', 'Dân tộc'),
+                    'email_sv': get_val(row, 'email_sv', 'Email SV'),
+                    'dien_thoai': get_val(row, 'dien_thoai', 'DienThoai', 'Điện thoại', 'Số điện thoại', 'SDT'),
+                    'mssv': get_val(row, 'mssv', 'MSSV'),
+                    'mat_khau_online': get_val(row, 'mat_khau_online', 'Mật khẩu Online'),
+                    'email_ueh': get_val(row, 'email_ueh', 'Email UEH'),
+                    'mat_khau_email': get_val(row, 'mat_khau_email', 'Mật khẩu Email'),
+                    'tong_diem': parse_float(get_val(row, 'tong_diem', 'Tổng điểm')),
+                    'dtc0_pt1': parse_float(get_val(row, 'dtc0_pt1', 'ĐTC0 PT1')),
+                    'dtc0_pt2': parse_float(get_val(row, 'dtc0_pt2', 'ĐTC0 PT2')),
+                    'loai_ccqt_uid': get_val(row, 'loai_ccqt_uid', 'LoaiCCQTUID', 'Loại CCQT UID'),
+                    'so_diem_ccqt': parse_float(get_val(row, 'so_diem_ccqt', 'Số điểm CCQT')),
+                    'ngay_thi_ccqt': parse_date(get_val(row, 'ngay_thi_ccqt', 'Ngày thi CCQT')),
+                    'ngay_thi_ccqt_new': parse_date(get_val(row, 'ngay_thi_ccqt_new', 'Ngày thi CCQT Mới', 'Ngày thi CCQT mới')),
+                    'diem_tb_lop10': parse_float(get_val(row, 'diem_tb_lop10', 'ĐTB Lớp 10')),
+                    'diem_tb_lop11': parse_float(get_val(row, 'diem_tb_lop11', 'ĐTB Lớp 11')),
+                    'diem_tb_lop12': parse_float(get_val(row, 'diem_tb_lop12', 'ĐTB Lớp 12')),
+                }
 
-    except Exception as e:
-      messages.error(request, f'Lỗi import file Excel: {e}')
-    return redirect('danh_sach_cap_nhat_trung_tuyen')
+                if hasattr(CapNhatThongTinTrungTuyen, 'ho_ten'):
+                    kwargs['ho_ten'] = get_val(row, 'ho_ten', 'Họ và tên', 'Họ tên')
 
-  # Processing DataTables AJAX request
-  if (
-      request.headers.get('x-requested-with') == 'XMLHttpRequest'
-      or request.GET.get('draw')
-  ):
-    draw = int(request.GET.get('draw', 1))
-    start = int(request.GET.get('start', 0))
-    length = int(request.GET.get('length', 10))
-    search_val = request.GET.get('search[value]', '').strip()
+                dict_trung_tuyen[cccd] = CapNhatThongTinTrungTuyen(**kwargs)
 
-    queryset = CapNhatThongTinTrungTuyen.objects.all()
-    records_total = queryset.count()
+            danh_sach_trung_tuyen = list(dict_trung_tuyen.values())
 
-    if search_val:
-      filter_q = (
-          Q(cccd__icontains=search_val)
-          | Q(ma_dkxt__icontains=search_val)
-          | Q(mssv__icontains=search_val)
-          | Q(email_sv__icontains=search_val)
-          | Q(sbd__icontains=search_val)
-          | Q(ma_noi_sinh__icontains=search_val)
-      )
-      if hasattr(CapNhatThongTinTrungTuyen, 'ho_ten'):
-        filter_q |= Q(ho_ten__icontains=search_val)
-      queryset = queryset.filter(filter_q)
+            # Thực thi ghi vào Database và hiển thị thông báo
+            if danh_sach_trung_tuyen:
+                with transaction.atomic():
+                    CapNhatThongTinTrungTuyen.objects.all().delete()
+                    CapNhatThongTinTrungTuyen.objects.bulk_create(danh_sach_trung_tuyen, batch_size=1000)
 
-    records_filtered = queryset.count()
-    data_slice = queryset[start : start + length] if length != -1 else queryset
+                # Dòng chữ màu đỏ phẳng, không có background hay border xung quanh
+                msg = f'Đã import thành công <b>{len(danh_sach_trung_tuyen)}</b> thí sinh!'
+                if dem_bo_qua > 0:
+                    msg += (
+                        f' <span style="color: #dc3545; font-weight: 600; margin-left: 10px;">'
+                        f'(Bỏ qua {dem_bo_qua} thí sinh do không có trong danh sách trúng tuyển)</span>'
+                    )
 
-    data = []
-    for idx, item in enumerate(data_slice, start=start + 1):
-      data.append({
-          'id': item.id,
-          'stt': idx,
-          'cccd': getattr(item, 'cccd', '') or '',
-          'ho_ten': (
-              getattr(item, 'ho_ten', '')
-              if hasattr(item, 'ho_ten')
-              else ''
-          ),
-          'ma_dkxt': item.ma_dkxt or '',
-          'sbd': getattr(item, 'sbd', '') or '',
-          'ma_noi_sinh': getattr(item, 'ma_noi_sinh', '') or '',
-          'ten_giai_hsg': getattr(item, 'ten_giai_hsg', '') or '',
-          'ten_mon_hsg': getattr(item, 'ten_mon_hsg', '') or '',
-          'ten_hang_hsg': getattr(item, 'ten_hang_hsg', '') or '',
-          'nam_hsg': getattr(item, 'nam_hsg', '') or '',
-          'ngay_sinh': (
-              item.ngay_sinh.strftime('%d/%m/%Y') if item.ngay_sinh else ''
-          ),
-          'gioi_tinh': item.gioi_tinh or '',
-          'dan_toc': item.dan_toc or '',
-          'email_sv': item.email_sv or '',
-          'dien_thoai': item.dien_thoai or '',
-          'mssv': item.mssv or '',
-          'mat_khau_online': item.mat_khau_online or '',
-          'email_ueh': item.email_ueh or '',
-          'mat_khau_email': item.mat_khau_email or '',
-          'tong_diem': (
-              item.tong_diem if item.tong_diem is not None else ''
-          ),
-          'dtc0_pt1': item.dtc0_pt1 if item.dtc0_pt1 is not None else '',
-          'dtc0_pt2': item.dtc0_pt2 if item.dtc0_pt2 is not None else '',
-          'loai_ccqt_uid': (
-              getattr(item, 'loai_ccqt_uid', '')
-              if hasattr(item, 'loai_ccqt_uid')
-              else ''
-          ),
-          'so_diem_ccqt': (
-              item.so_diem_ccqt if item.so_diem_ccqt is not None else ''
-          ),
-          'ngay_thi_ccqt': (
-              item.ngay_thi_ccqt.strftime('%d/%m/%Y')
-              if item.ngay_thi_ccqt
-              else ''
-          ),
-          'ngay_thi_ccqt_new': (
-              item.ngay_thi_ccqt_new.strftime('%d/%m/%Y')
-              if item.ngay_thi_ccqt_new
-              else ''
-          ),
-          'diem_tb_lop10': (
-              item.diem_tb_lop10 if item.diem_tb_lop10 is not None else ''
-          ),
-          'diem_tb_lop11': (
-              item.diem_tb_lop11 if item.diem_tb_lop11 is not None else ''
-          ),
-          'diem_tb_lop12': (
-              item.diem_tb_lop12 if item.diem_tb_lop12 is not None else ''
-          ),
-      })
+                messages.success(request, mark_safe(msg))
 
-    return JsonResponse({
-        'draw': draw,
-        'recordsTotal': records_total,
-        'recordsFiltered': records_filtered,
-        'data': data,
-    })
+            elif dem_bo_qua > 0:
+                messages.warning(
+                    request, 
+                    f'Không import được thí sinh nào. Đã bỏ qua {dem_bo_qua} thí sinh do không có trong danh sách trúng tuyển.'
+                )
+            else:
+                messages.warning(request, 'Không tìm thấy dữ liệu hợp lệ trong file Excel!')
 
-  danh_sach = CapNhatThongTinTrungTuyen.objects.all().order_by('id')
-# Tính toán số lượng thực tế từ cơ sở dữ liệu
-  stats = {
-       'total': danh_sach.count(),
-       'chua_co_mssv': danh_sach.filter(Q(mssv__isnull=True) | Q(mssv='')).count(),
-       'chua_co_email': danh_sach.filter(Q(email_ueh__isnull=True) | Q(email_ueh='')).count(),
-       'chua_co_ngay_sinh': danh_sach.filter(ngay_sinh__isnull=True).count(),
-       'chua_co_noi_sinh': danh_sach.filter(Q(ma_noi_sinh__isnull=True) | Q(ma_noi_sinh='')).count(),
-   }  
-  return render(request, 'xettuyen/cap_nhat_thong_tin_trung_tuyen.html', {
+        except Exception as e:
+            messages.error(request, f'Lỗi import file Excel: {e}')
+
+        return redirect('danh_sach_cap_nhat_trung_tuyen')
+
+    # ------------------------------------------------------------------
+    # 2. XỬ LÝ DATATABLES AJAX REQUEST
+    # ------------------------------------------------------------------
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('draw'):
+        draw = int(request.GET.get('draw', 1))
+        start = int(request.GET.get('start', 0))
+        length = int(request.GET.get('length', 10))
+        search_val = request.GET.get('search[value]', '').strip()
+
+        queryset = CapNhatThongTinTrungTuyen.objects.all()
+        records_total = queryset.count()
+
+        if search_val:
+            filter_q = (
+                Q(cccd__icontains=search_val)
+                | Q(ma_dkxt__icontains=search_val)
+                | Q(mssv__icontains=search_val)
+                | Q(email_sv__icontains=search_val)
+                | Q(sbd__icontains=search_val)
+                | Q(ma_noi_sinh__icontains=search_val)
+            )
+            if hasattr(CapNhatThongTinTrungTuyen, 'ho_ten'):
+                filter_q |= Q(ho_ten__icontains=search_val)
+            queryset = queryset.filter(filter_q)
+
+        records_filtered = queryset.count()
+        data_slice = queryset[start:start + length] if length != -1 else queryset
+
+        data = []
+        for idx, item in enumerate(data_slice, start=start + 1):
+            data.append({
+                'id': item.id,
+                'stt': idx,
+                'cccd': getattr(item, 'cccd', '') or '',
+                'ho_ten': getattr(item, 'ho_ten', '') if hasattr(item, 'ho_ten') else '',
+                'ma_dkxt': item.ma_dkxt or '',
+                'sbd': getattr(item, 'sbd', '') or '',
+                'ma_noi_sinh': getattr(item, 'ma_noi_sinh', '') or '',
+                'ten_giai_hsg': getattr(item, 'ten_giai_hsg', '') or '',
+                'ten_mon_hsg': getattr(item, 'ten_mon_hsg', '') or '',
+                'ten_hang_hsg': getattr(item, 'ten_hang_hsg', '') or '',
+                'nam_hsg': getattr(item, 'nam_hsg', '') or '',
+                'ngay_sinh': item.ngay_sinh.strftime('%d/%m/%Y') if item.ngay_sinh else '',
+                'gioi_tinh': item.gioi_tinh or '',
+                'dan_toc': item.dan_toc or '',
+                'email_sv': item.email_sv or '',
+                'dien_thoai': item.dien_thoai or '',
+                'mssv': item.mssv or '',
+                'mat_khau_online': item.mat_khau_online or '',
+                'email_ueh': item.email_ueh or '',
+                'mat_khau_email': item.mat_khau_email or '',
+                'tong_diem': item.tong_diem if item.tong_diem is not None else '',
+                'dtc0_pt1': item.dtc0_pt1 if item.dtc0_pt1 is not None else '',
+                'dtc0_pt2': item.dtc0_pt2 if item.dtc0_pt2 is not None else '',
+                'loai_ccqt_uid': getattr(item, 'loai_ccqt_uid', '') if hasattr(item, 'loai_ccqt_uid') else '',
+                'so_diem_ccqt': item.so_diem_ccqt if item.so_diem_ccqt is not None else '',
+                'ngay_thi_ccqt': item.ngay_thi_ccqt.strftime('%d/%m/%Y') if item.ngay_thi_ccqt else '',
+                'ngay_thi_ccqt_new': item.ngay_thi_ccqt_new.strftime('%d/%m/%Y') if item.ngay_thi_ccqt_new else '',
+                'diem_tb_lop10': item.diem_tb_lop10 if item.diem_tb_lop10 is not None else '',
+                'diem_tb_lop11': item.diem_tb_lop11 if item.diem_tb_lop11 is not None else '',
+                'diem_tb_lop12': item.diem_tb_lop12 if item.diem_tb_lop12 is not None else '',
+            })
+
+        return JsonResponse({
+            'draw': draw,
+            'recordsTotal': records_total,
+            'recordsFiltered': records_filtered,
+            'data': data,
+        })
+
+    # ------------------------------------------------------------------
+    # 3. TRẢ VỀ GIAO DIỆN HẰNG NGÀY (GET)
+    # ------------------------------------------------------------------
+    danh_sach = CapNhatThongTinTrungTuyen.objects.all().order_by('id')
+    stats = {
+        'total': danh_sach.count(),
+        'chua_co_mssv': danh_sach.filter(Q(mssv__isnull=True) | Q(mssv='')).count(),
+        'chua_co_email': danh_sach.filter(Q(email_ueh__isnull=True) | Q(email_ueh='')).count(),
+        'chua_co_ngay_sinh': danh_sach.filter(ngay_sinh__isnull=True).count(),
+        'chua_co_noi_sinh': danh_sach.filter(Q(ma_noi_sinh__isnull=True) | Q(ma_noi_sinh='')).count(),
+    }  
+    return render(request, 'xettuyen/cap_nhat_thong_tin_trung_tuyen.html', {
         'danh_sach': danh_sach,
         'stats': stats,
     })
-
 
 # =========================================================
 # 3. XUẤT EXCEL DANH SÁCH CẬP NHẬT TRÚNG TUYỂN
