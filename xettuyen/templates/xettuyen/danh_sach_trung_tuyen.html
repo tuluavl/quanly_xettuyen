@@ -34,17 +34,6 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-dark shadow-sm border-0 rounded-3">
-                <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="text-dark-50 fw-bold">PHƯƠNG THỨC V-SAT</small>
-                        <h3 class="fw-bold mb-0 mt-1">{{ stats.vsat|default:0 }}</h3>
-                    </div>
-                    <i class="fa-solid fa-award fa-2x text-black-50"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
             <div class="card bg-success text-white shadow-sm border-0 rounded-3">
                 <div class="card-body p-3 d-flex justify-content-between align-items-center">
                     <div>
@@ -55,11 +44,21 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm border-0 rounded-3">
+                <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-dark-50 fw-bold">PHƯƠNG THỨC V-SAT</small>
+                        <h3 class="fw-bold mb-0 mt-1">{{ stats.vsat|default:0 }}</h3>
+                    </div>
+                    <i class="fa-solid fa-award fa-2x text-black-50"></i>
+                </div>
+            </div>
+        </div>
     </div>
 
-<!-- THANH CÔNG CỤ NÚT BẤM (ĐÃ TỐI ƯU & GỘP NHÓM) -->
+    <!-- THANH CÔNG CỤ NÚT BẤM -->
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        
         <!-- NHÓM 1: CÁC THAO TÁC XỬ LÝ DỮ LIỆU -->
         <div class="d-flex flex-wrap gap-2">
             <button class="btn btn-primary btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#modalTaoMaSV">
@@ -79,7 +78,7 @@
             </form>
         </div>
 
-        <!-- NHÓM 2: GỘP TOÀN BỘ TÍNH NĂNG XUẤT FILE / BÁO CÁO -->
+        <!-- NHÓM 2: TÍNH NĂNG XUẤT FILE / BÁO CÁO -->
         <div class="dropdown">
             <button class="btn btn-warning text-dark btn-sm fw-bold px-3 py-1 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fa-solid fa-file-export me-1"></i> Xuất dữ liệu & Báo cáo
@@ -91,13 +90,11 @@
                         <i class="fa-solid fa-file-excel text-success me-2"></i> Xuất Excel trúng tuyển
                     </a>
                 </li>
-               <!-- NÚT XUẤT DANH SÁCH SMS BỔ SUNG MỚI -->
-				<li>
-					<a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalXuatSMS">
-						<i class="fa-solid fa-file-excel text-success me-2"></i> Xuất danh sách gửi SMS
-					</a>
-				</li>
-				
+                <li>
+                    <a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalXuatSMS">
+                        <i class="fa-solid fa-file-excel text-success me-2"></i> Xuất danh sách gửi SMS
+                    </a>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li><h6 class="dropdown-header text-uppercase">Dữ liệu hệ thống nhập học</h6></li>
                 <li>
@@ -112,103 +109,161 @@
                 </li>
             </ul>
         </div>
-
     </div>
 
-
     <!-- BẢNG HIỂN THỊ DỮ LIỆU -->
-    <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
-        <thead>
-            <tr>
-                <th class="text-uppercase text-center">STT</th>
-				<th class="text-uppercase text-center">ID SV</th>               
-				<th class="text-uppercase text-center">Số CV</th>
-                <th class="text-uppercase text-center">Họ tên</th>
-                <th class="text-uppercase text-center">Email</th>
-                <th class="text-uppercase text-center">Mã ĐKXT</th>
-                <th class="text-uppercase text-center">Ngày sinh</th>
-                <th class="text-uppercase text-center">ĐTUT</th>
-                <th class="text-uppercase text-center">KVUT</th>
-                <th class="text-uppercase text-center">Phương thức xét</th>
-                <th class="text-uppercase text-center">PTXT</th>
-                <th class="text-uppercase text-center">CTĐT</th>
-				<th class="text-uppercase text-center">Điểm cộng</th>
-                <th class="text-uppercase text-center">Học bạ</th>
-                <th class="text-uppercase text-center">THM TN</th>
-                <th class="text-uppercase text-center">Môn 1 (TN)</th>
-                <th class="text-uppercase text-center">Điểm 1 (TN)</th>
-                <th class="text-uppercase text-center">Môn 2 (TN)</th>
-                <th class="text-uppercase text-center">Điểm 2 (TN)</th>
-                <th class="text-uppercase text-center">Môn 3 (TN)</th>
-                <th class="text-uppercase text-center">Điểm 3 (TN)</th>
-                <th class="text-uppercase text-center">Điểm ĐGNL</th>
-                <th class="text-uppercase text-center">THM VSAT</th>
-                <th class="text-uppercase text-center">Môn 1 (VSAT)</th>
-                <th class="text-uppercase text-center">Điểm 1 (VSAT)</th>
-                <th class="text-uppercase text-center">Môn 2 (VSAT)</th>
-                <th class="text-uppercase text-center">Điểm 2 (VSAT)</th>
-                <th class="text-uppercase text-center">Môn 3 (VSAT)</th>
-                <th class="text-uppercase text-center">Điểm 3 (VSAT)</th>
-                <th class="text-uppercase text-center">Điểm TB THPT</th>
-                <th class="text-uppercase text-center">Điểm thi + Học bạ</th>
-                <th class="text-uppercase text-center">Điểm QĐ</th>
-                <th class="text-uppercase text-center">CCCD</th>
-				<th class="text-uppercase text-center">Mã SV</th>
-                <th class="text-uppercase text-center">Barcode</th>
-				<th class="text-uppercase text-center">Điểm TC0</th>
-                <th class="text-uppercase text-center">Điểm Chuẩn</th>
-                <th class="text-uppercase text-center">Page</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ts in danh_sach %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
+            <thead>
                 <tr>
-                    <td class="text-center fw-bold">{{ forloop.counter }}</td>
-					<td class="text-center">{{ ts.IDSV|default:"" }}</td>
-                    <td class="text-center">{{ ts.so_cv|default:"" }}</td>
-                    <td class="fw-bold">{{ ts.ho_ten|default:"" }}</td>
-                    <td>{{ ts.email|default:"" }}</td>
-                    <td class="text-center">{{ ts.ma_dkxt|default:"" }}</td>
-                    <td class="text-center">{{ ts.ngay_sinh|default:"" }}</td>
-                    <td class="text-center">{{ ts.dtut|default:"" }}</td>
-                    <td class="text-center">{{ ts.kvut|default:"" }}</td>
-                    <td class="text-center">{{ ts.phuong_thuc_xet|default:"" }}</td>
-                    <td><span class="badge bg-info text-dark">{{ ts.ptxt|default:"" }}</span></td>
-                    <td><span class="badge bg-primary">{{ ts.ctdt|default:"" }}</span></td>
-					<td><span class="badge bg-primary">{{ ts.pt2_diem_cong|default:"" }}</span></td>
-                    <td class="small">{{ ts.hoc_ba|default:"" }}</td>
-                    <td>{{ ts.pt2_tn_thm|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_mamon1|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_diemmon1|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_mamon2|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_diemmon2|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_mamon3|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_tn_diemmon3|default:"" }}</td>
-                    <td class="fw-bold text-info text-center" >{{ ts.pt2_dgnl|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_thm|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_mamon1|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_diemmon1|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_mamon2|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_diemmon2|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_mamon3|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_vsat_diemmon3|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2a_diemtbthpt|default:"" }}</td>
-                    <td class="text-center">{{ ts.pt2_diem_qd|default:"" }}</td>
-                    <td class="fw-bold text-danger text-center">{{ ts.pt2_qd|default:"" }}</td>
-                    <td class="fw-bold text-success text-center">{{ ts.cccd|default:"" }}</td>
-                    <td class="fw-bold text-primary text-center">{{ ts.ma_sv|default:"" }}</td>
-					<td><code>{{ ts.barcode|default:"" }}</code></td>
-					<td class="fw-bold text-secondary text-center">{{ ts.dtc0|default:"" }}</td>
-                    <td class="fw-bold text-success text-center">{{ ts.dc|default:"" }}</td>
-                    <td class="text-center">{{ ts.page|default:"" }}</td>
+                    <th class="text-uppercase text-center">STT</th>                 
+                    <th class="text-uppercase text-center">ID SV</th>               
+                    <th class="text-uppercase text-center">Số CV</th>
+                    <th class="text-uppercase text-center">Họ tên</th>
+                    <th class="text-uppercase text-center">Email</th>
+                    <th class="text-uppercase text-center">Mã ĐKXT</th>
+                    <th class="text-uppercase text-center">Ngày sinh</th>
+                    <th class="text-uppercase text-center">ĐTUT</th>
+                    <th class="text-uppercase text-center">KVUT</th>
+                    <th class="text-uppercase text-center">Phương thức xét</th>
+                    <th class="text-uppercase text-center">PTXT</th>
+                    <th class="text-uppercase text-center">CTĐT</th>
+                    <th class="text-uppercase text-center">Điểm cộng</th>
+                    <th class="text-uppercase text-center">Học bạ</th>
+                    <th class="text-uppercase text-center">THM TN</th>
+                    <th class="text-uppercase text-center">Môn 1 (TN)</th>
+                    <th class="text-uppercase text-center">Điểm 1 (TN)</th>
+                    <th class="text-uppercase text-center">Môn 2 (TN)</th>
+                    <th class="text-uppercase text-center">Điểm 2 (TN)</th>
+                    <th class="text-uppercase text-center">Môn 3 (TN)</th>
+                    <th class="text-uppercase text-center">Điểm 3 (TN)</th>
+                    <th class="text-uppercase text-center">Điểm ĐGNL</th>
+                    <th class="text-uppercase text-center">THM VSAT</th>
+                    <th class="text-uppercase text-center">Môn 1 (VSAT)</th>
+                    <th class="text-uppercase text-center">Điểm 1 (VSAT)</th>
+                    <th class="text-uppercase text-center">Môn 2 (VSAT)</th>
+                    <th class="text-uppercase text-center">Điểm 2 (VSAT)</th>
+                    <th class="text-uppercase text-center">Môn 3 (VSAT)</th>
+                    <th class="text-uppercase text-center">Điểm 3 (VSAT)</th>
+                    <th class="text-uppercase text-center">Điểm TB THPT</th>
+                    <th class="text-uppercase text-center">Điểm thi + Học bạ</th>
+                    <th class="text-uppercase text-center">Điểm QĐ</th>
+                    <th class="text-uppercase text-center">CCCD</th>
+                    <th class="text-uppercase text-center">Mã SV</th>
+                    <th class="text-uppercase text-center">Barcode</th>
+                    <th class="text-uppercase text-center">Điểm TC0</th>
+                    <th class="text-uppercase text-center">Điểm Chuẩn</th>
+                    <th class="text-uppercase text-center">Page</th>
+					<th class="text-uppercase text-center">Thao tác</th>
                 </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="36" class="text-center text-muted">Chưa có dữ liệu thí sinh trúng tuyển</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for ts in danh_sach %}
+                    <tr>
+                        <td class="text-center fw-bold">{{ forloop.counter }}</td>
+                        <td class="text-center">{{ ts.IDSV|default:"" }}</td>
+                        <td class="text-center">{{ ts.so_cv|default:"" }}</td>
+                        <td class="fw-bold">{{ ts.ho_ten|default:"" }}</td>
+                        <td>{{ ts.email|default:"" }}</td>
+                        <td class="text-center">{{ ts.ma_dkxt|default:"" }}</td>
+                        <td class="text-center">{{ ts.ngay_sinh|default:"" }}</td>
+                        <td class="text-center">{{ ts.dtut|default:"" }}</td>
+                        <td class="text-center">{{ ts.kvut|default:"" }}</td>
+                        <td class="text-center">{{ ts.phuong_thuc_xet|default:"" }}</td>
+                        <td><span class="badge bg-info text-dark">{{ ts.ptxt|default:"" }}</span></td>
+                        <td><span class="badge bg-primary">{{ ts.ctdt|default:"" }}</span></td>
+                        <td><span class="badge text-bg-warning">{{ ts.pt2_diem_cong|default:"" }}</span></td>
+                        <td class="small">{{ ts.hoc_ba|default:"" }}</td>
+                        <td>{{ ts.pt2_tn_thm|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_mamon1|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_diemmon1|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_mamon2|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_diemmon2|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_mamon3|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_tn_diemmon3|default:"" }}</td>
+                        <td class="fw-bold text-info text-center">{{ ts.pt2_dgnl|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_thm|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_mamon1|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_diemmon1|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_mamon2|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_diemmon2|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_mamon3|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_vsat_diemmon3|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2a_diemtbthpt|default:"" }}</td>
+                        <td class="text-center">{{ ts.pt2_diem_qd|default:"" }}</td>
+                        <td class="fw-bold text-danger text-center">{{ ts.pt2_qd|default:"" }}</td>
+                        <td class="fw-bold text-success text-center">{{ ts.cccd|default:"" }}</td>
+                        <td class="fw-bold text-primary text-center">{{ ts.ma_sv|default:"" }}</td>
+                        <td><code>{{ ts.barcode|default:"" }}</code></td>
+                        <td class="fw-bold text-secondary text-center">{{ ts.dtc0|default:"" }}</td>
+                        <td class="fw-bold text-success text-center">{{ ts.dc|default:"" }}</td>
+                        <td class="text-center">{{ ts.page|default:"" }}</td>
+						
+						<!-- NÚT THAO TÁC SỬA / XÓA ĐÃ BỔ SUNG DATA-BS-TOGGLE & DATA-BS-TARGET -->
+                        <td class="text-center">
+                            <button class="btn btn-warning btn-sm btn-edit py-1 px-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalSuaTrungTuyen"
+                                data-id="{{ ts.id }}"
+                                data-idsv="{{ ts.IDSV|default:'' }}"
+                                data-so_cv="{{ ts.so_cv|default:'' }}"
+                                data-ho_ten="{{ ts.ho_ten|default:'' }}"
+                                data-email="{{ ts.email|default:'' }}"
+                                data-dien_thoai="{{ ts.dien_thoai|default:'' }}"
+                                data-ma_dkxt="{{ ts.ma_dkxt|default:'' }}"
+                                data-ngay_sinh="{{ ts.ngay_sinh|default:'' }}"
+                                data-dtut="{{ ts.dtut|default:'' }}"
+                                data-kvut="{{ ts.kvut|default:'' }}"
+                                data-hoc_ba="{{ ts.hoc_ba|default:'' }}"
+                                data-phuong_thuc_xet="{{ ts.phuong_thuc_xet|default:'' }}"
+                                data-ptxt="{{ ts.ptxt|default:'' }}"
+                                data-ctdt="{{ ts.ctdt|default:'' }}"
+                                data-pt2_diem_cong="{{ ts.pt2_diem_cong|default:'' }}"
+                                data-pt2_tn_thm="{{ ts.pt2_tn_thm|default:'' }}"
+                                data-pt2_tn_mamon1="{{ ts.pt2_tn_mamon1|default:'' }}"
+                                data-pt2_tn_diemmon1="{{ ts.pt2_tn_diemmon1|default:'' }}"
+                                data-pt2_tn_mamon2="{{ ts.pt2_tn_mamon2|default:'' }}"
+                                data-pt2_tn_diemmon2="{{ ts.pt2_tn_diemmon2|default:'' }}"
+                                data-pt2_tn_mamon3="{{ ts.pt2_tn_mamon3|default:'' }}"
+                                data-pt2_tn_diemmon3="{{ ts.pt2_tn_diemmon3|default:'' }}"
+                                data-pt2_dgnl="{{ ts.pt2_dgnl|default:'' }}"
+                                data-pt2_vsat_thm="{{ ts.pt2_vsat_thm|default:'' }}"
+                                data-pt2_vsat_mamon1="{{ ts.pt2_vsat_mamon1|default:'' }}"
+                                data-pt2_vsat_diemmon1="{{ ts.pt2_vsat_diemmon1|default:'' }}"
+                                data-pt2_vsat_mamon2="{{ ts.pt2_vsat_mamon2|default:'' }}"
+                                data-pt2_vsat_diemmon2="{{ ts.pt2_vsat_diemmon2|default:'' }}"
+                                data-pt2_vsat_mamon3="{{ ts.pt2_vsat_mamon3|default:'' }}"
+                                data-pt2_vsat_diemmon3="{{ ts.pt2_vsat_diemmon3|default:'' }}"
+                                data-pt2a_diemtbthpt="{{ ts.pt2a_diemtbthpt|default:'' }}"
+                                data-pt2_diem_qd="{{ ts.pt2_diem_qd|default:'' }}"
+                                data-pt2_qd="{{ ts.pt2_qd|default:'' }}"
+                                data-cccd="{{ ts.cccd|default:'' }}"
+                                data-ma_sv="{{ ts.ma_sv|default:'' }}"
+                                data-barcode="{{ ts.barcode|default:'' }}"
+                                data-dtc0="{{ ts.dtc0|default:'' }}"
+                                data-dc="{{ ts.dc|default:'' }}"
+                                data-page="{{ ts.page|default:'' }}"
+                                title="Chỉnh sửa">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm btn-delete py-1 px-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalXoaTrungTuyen"
+                                data-id="{{ ts.id }}"
+                                data-hoten="{{ ts.ho_ten|default:'' }}"
+                                title="Xóa">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="39" class="text-center text-muted">Chưa có dữ liệu thí sinh trúng tuyển</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- MODAL 1: TẠO MASV TỰ ĐỘNG -->
@@ -237,7 +292,7 @@
     </div>
 </div>
 
-<!-- MODAL CẬP NHẬT SỐ CV & PAGE -->
+<!-- MODAL 2: CẬP NHẬT SỐ CV & PAGE -->
 <div class="modal fade" id="modalTaoSoCV" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -297,7 +352,7 @@
     </div>
 </div>
 
-<!-- Modal 4: Nhập Nội Dung SMS -->
+<!-- MODAL 4: NHẬP NỘI DUNG SMS -->
 <div class="modal fade" id="modalXuatSMS" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -319,44 +374,350 @@
                             required></textarea>
                     </div>
                 </div>
-                <!-- Cập nhật lại 2 nút bấm trong modal-footer -->
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-					<button type="submit" class="btn btn-primary btn-sm fw-bold" id="btnSubmitSMS">
-					<i class="fa-solid fa-download me-1" id="iconSMS"></i>
-					<span id="textSMS">Đồng ý & Xuất file</span>
-					</button>
-				</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold" id="btnSubmitSMS">
+                        <i class="fa-solid fa-download me-1" id="iconSMS"></i>
+                        <span id="textSMS">Đồng ý & Xuất file</span>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- MODAL 5: CHỈNH SỬA THÔNG TIN THÍ SINH -->
+<div class="modal fade" id="modalSuaTrungTuyen" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 rounded-3 shadow">
+            
+            <div class="modal-header bg-warning text-dark py-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="fa-solid fa-user-pen me-2"></i>Chỉnh Sửa Thông Tin Thí Sinh
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="formSuaTrungTuyen" method="POST" class="d-flex flex-column h-100">
+                {% csrf_token %}
+                <div class="modal-body p-4" style="max-height: 72vh; overflow-y: auto;">
+                    
+                    <!-- NHÓM 1: THÔNG TIN CÁ NHÂN & ĐỊNH DANH -->
+                    <div class="section-group mb-4">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-id-card me-2"></i>1. Thông tin cá nhân & Định danh
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Họ và tên <span class="text-danger">*</span></label>
+                                <input type="text" name="ho_ten" id="edit_ho_ten" class="form-control" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Số CCCD / CMND</label>
+                                <input type="text" name="cccd" id="edit_cccd" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Ngày sinh</label>
+                                <input type="text" name="ngay_sinh" id="edit_ngay_sinh" class="form-control" placeholder="DD/MM/YYYY">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Mã Sinh Viên (ma_sv)</label>
+                                <input type="text" name="ma_sv" id="edit_ma_sv" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">ID Sinh Viên (IDSV)</label>
+                                <input type="text" name="IDSV" id="edit_IDSV" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Mã Barcode</label>
+                                <input type="text" name="barcode" id="edit_barcode" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Số Công Văn (so_cv)</label>
+                                <input type="text" name="so_cv" id="edit_so_cv" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM 2: LIÊN HỆ & NGUYỆN VỌNG -->
+                    <div class="section-group mb-4">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-address-book me-2"></i>2. Thông tin liên hệ & Nguyện vọng
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Địa chỉ Email</label>
+                                <input type="email" name="email" id="edit_email" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Số điện thoại</label>
+                                <input type="text" name="dien_thoai" id="edit_dien_thoai" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Mã ĐKXT</label>
+                                <input type="text" name="ma_dkxt" id="edit_ma_dkxt" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM 3: PHƯƠNG THỨC XÉT TUYỂN & CÁC ƯU TIÊN -->
+                    <div class="section-group mb-4">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-graduation-cap me-2"></i>3. Phương thức xét tuyển & Đào tạo
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Phương thức xét</label>
+                                <input type="text" name="phuong_thuc_xet" id="edit_phuong_thuc_xet" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">PTXT (Mã ngắn)</label>
+                                <input type="text" name="ptxt" id="edit_ptxt" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Chương trình đào tạo (CTĐT)</label>
+                                <input type="text" name="ctdt" id="edit_ctdt" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Đối tượng ƯT (dtut)</label>
+                                <input type="text" name="dtut" id="edit_dtut" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Khu vực ƯT (kvut)</label>
+                                <input type="text" name="kvut" id="edit_kvut" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Trang (Page)</label>
+                                <input type="number" name="page" id="edit_page" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Học bạ</label>
+                                <input type="text" name="hoc_ba" id="edit_hoc_ba" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM 4: KẾT QUẢ ĐIỂM THI TỐT NGHIỆP THPT -->
+                    <div class="section-group mb-4">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-school me-2"></i>4. Kết quả điểm thi Tốt nghiệp THPT
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Tổ hợp môn THPT</label>
+                                <input type="text" name="pt2_tn_thm" id="edit_pt2_tn_thm" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Môn 1 / Điểm 1</label>
+                                <div class="input-group">
+                                    <input type="text" name="pt2_tn_mamon1" id="edit_pt2_tn_mamon1" class="form-control" placeholder="Môn">
+                                    <input type="number" step="0.01" name="pt2_tn_diemmon1" id="edit_pt2_tn_diemmon1" class="form-control" placeholder="Điểm">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Môn 2 / Điểm 2</label>
+                                <div class="input-group">
+                                    <input type="text" name="pt2_tn_mamon2" id="edit_pt2_tn_mamon2" class="form-control" placeholder="Môn">
+                                    <input type="number" step="0.01" name="pt2_tn_diemmon2" id="edit_pt2_tn_diemmon2" class="form-control" placeholder="Điểm">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Môn 3 / Điểm 3</label>
+                                <div class="input-group">
+                                    <input type="text" name="pt2_tn_mamon3" id="edit_pt2_tn_mamon3" class="form-control" placeholder="Môn">
+                                    <input type="number" step="0.01" name="pt2_tn_diemmon3" id="edit_pt2_tn_diemmon3" class="form-control" placeholder="Điểm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM 5: KẾT QUẢ ĐIỂM THI V-SAT & ĐÁNH GIÁ NĂNG LỰC -->
+                    <div class="section-group mb-4">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-chart-line me-2"></i>5. Kết quả điểm thi V-SAT & ĐGNL
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Điểm thi ĐGNL</label>
+                                <input type="number" step="0.01" name="pt2_dgnl" id="edit_pt2_dgnl" class="form-control text-info fw-bold">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold small">Tổ hợp môn V-SAT</label>
+                                <input type="text" name="pt2_vsat_thm" id="edit_pt2_vsat_thm" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Chi tiết V-SAT (Môn 1 | Môn 2 | Môn 3)</label>
+                                <div class="input-group">
+                                    <input type="text" name="pt2_vsat_mamon1" id="edit_pt2_vsat_mamon1" class="form-control" placeholder="M1">
+                                    <input type="number" step="0.01" name="pt2_vsat_diemmon1" id="edit_pt2_vsat_diemmon1" class="form-control" placeholder="Đ1">
+                                    <input type="text" name="pt2_vsat_mamon2" id="edit_pt2_vsat_mamon2" class="form-control" placeholder="M2">
+                                    <input type="number" step="0.01" name="pt2_vsat_diemmon2" id="edit_pt2_vsat_diemmon2" class="form-control" placeholder="Đ2">
+                                    <input type="text" name="pt2_vsat_mamon3" id="edit_pt2_vsat_mamon3" class="form-control" placeholder="M3">
+                                    <input type="number" step="0.01" name="pt2_vsat_diemmon3" id="edit_pt2_vsat_diemmon3" class="form-control" placeholder="Đ3">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NHÓM 6: ĐIỂM TỔNG HỢP & QUY ĐỔI -->
+                    <div class="section-group">
+                        <h6 class="text-primary fw-bold border-bottom pb-2 mb-3">
+                            <i class="fa-solid fa-calculator me-2"></i>6. Điểm tổng hợp, Quy đổi & Điểm chuẩn
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">ĐTB THPT (pt2a_diemtbthpt)</label>
+                                <input type="number" step="0.01" name="pt2a_diemtbthpt" id="edit_pt2a_diemtbthpt" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Điểm cộng</label>
+                                <input type="text" name="pt2_diem_cong" id="edit_pt2_diem_cong" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Điểm thi + Học bạ (pt2_diem_qd)</label>
+                                <input type="number" step="0.01" name="pt2_diem_qd" id="edit_pt2_diem_qd" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Điểm Quy đổi (pt2_qd)</label>
+                                <input type="number" step="0.01" name="pt2_qd" id="edit_pt2_qd" class="form-control text-danger fw-bold">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Điểm TC0 (dtc0)</label>
+                                <input type="number" step="0.01" name="dtc0" id="edit_dtc0" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small">Điểm chuẩn (dc)</label>
+                                <input type="number" step="0.01" name="dc" id="edit_dc" class="form-control text-success fw-bold">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Lưu thay đổi
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 6: XÁC NHẬN XÓA THÍ SINH -->
+<div class="modal fade" id="modalXoaTrungTuyen" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="formXoaTrungTuyen" method="POST">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white py-3">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>Xác Nhận Xóa
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="fs-6 mb-0">
+                        Bạn có chắc chắn muốn xóa thí sinh <strong id="delete_ho_ten" class="text-danger fs-5"></strong> khỏi danh sách trúng tuyển không?
+                    </p>
+                    <small class="text-muted mt-2 d-block">Hành động này sẽ không thể khôi phục lại!</small>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger btn-sm fw-bold px-3">Xóa thí sinh</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT XỬ LÝ SỰ KIỆN (VANILLA JS) -->
+<!-- JAVASCRIPT XỬ LÝ SỰ KIỆN (VANILLA JS) -->
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    var formSMS = document.querySelector('#modalXuatSMS form');
-    var modalElement = document.getElementById('modalXuatSMS');
-    var btnSubmit = document.getElementById('btnSubmitSMS');
-    var iconSMS = document.getElementById('iconSMS');
-    var textSMS = document.getElementById('textSMS');
+document.addEventListener('DOMContentLoaded', function() {
+    const urlSuaTemplate = "{% url 'sua_trung_tuyen' 0 %}";
+    const urlXoaTemplate = "{% url 'xoa_trung_tuyen' 0 %}";
 
-    if (formSMS && modalElement) {
-        formSMS.addEventListener('submit', function () {
-            // 1. Bật hiệu ứng xoay và vô hiệu hóa nút để tránh click trùng
-            btnSubmit.disabled = true;
-            iconSMS.className = 'spinner-border spinner-border-sm me-1';
-            textSMS.textContent = 'Đang xuất file...';
+    // 1. LẮNG NGHE SỰ KIỆN CLICK NÚT SỬA VÀ ĐỔ DỮ LIỆU VÀO FORM
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-edit');
+        if (!btn) return;
 
-            // 2. Tự động đóng Modal và reset nút về trạng thái ban đầu sau 2 giây
-            setTimeout(function () {
-                var modalInstance = bootstrap.Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    modalInstance.hide();
+        var id = btn.getAttribute('data-id');
+        var formSua = document.getElementById('formSuaTrungTuyen');
+        if (formSua && urlSuaTemplate) {
+            formSua.setAttribute('action', urlSuaTemplate.replace('0', id));
+        }
+
+        var fields = [
+            'ho_ten', 'cccd', 'ngay_sinh', 'ma_sv', 'idsv', 'barcode', 'so_cv',
+            'email', 'dien_thoai', 'ma_dkxt',
+            'phuong_thuc_xet', 'ptxt', 'ctdt', 'dtut', 'kvut', 'page', 'hoc_ba',
+            'pt2_tn_thm', 'pt2_tn_mamon1', 'pt2_tn_diemmon1', 'pt2_tn_mamon2', 'pt2_tn_diemmon2', 'pt2_tn_mamon3', 'pt2_tn_diemmon3',
+            'pt2_dgnl', 'pt2_vsat_thm', 'pt2_vsat_mamon1', 'pt2_vsat_diemmon1', 'pt2_vsat_mamon2', 'pt2_vsat_diemmon2', 'pt2_vsat_mamon3', 'pt2_vsat_diemmon3',
+            'pt2a_diemtbthpt', 'pt2_diem_cong', 'pt2_diem_qd', 'pt2_qd', 'dtc0', 'dc'
+        ];
+
+        fields.forEach(function(field) {
+            var val = btn.getAttribute('data-' + field) || '';
+            var input = document.getElementById('edit_' + field);
+            if (input) {
+                // CHUYỂN DẤU PHẨY THÀNH DẤU CHẤM CHO CÁC Ô ĐIỂM SỐ
+                if (typeof val === 'string') {
+                    val = val.trim().replace(',', '.');
                 }
+                input.value = val;
+            }
+        });
 
-                // Trả nút bấm về trạng thái gốc cho lần sử dụng sau
-                btnSubmit.disabled = false;
-                iconSMS.className = 'fa-solid fa-download me-1';
-                textSMS.textContent = 'Đồng ý & Xuất file';
+        // Xử lý riêng trường IDSV (chữ hoa)
+        var idsvVal = btn.getAttribute('data-idsv') || '';
+        var inputIDSV = document.getElementById('edit_IDSV');
+        if (inputIDSV) {
+            inputIDSV.value = idsvVal;
+        }
+    });
+
+    // 2. LẮNG NGHE SỰ KIỆN CLICK NÚT XÓA
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-delete');
+        if (!btn) return;
+
+        var id = btn.getAttribute('data-id');
+        var hoten = btn.getAttribute('data-hoten');
+        var formXoa = document.getElementById('formXoaTrungTuyen');
+        var txtHoTen = document.getElementById('delete_ho_ten');
+
+        if (formXoa) {
+            formXoa.setAttribute('action', urlXoaTemplate.replace('0', id));
+        }
+        if (txtHoTen) {
+            txtHoTen.textContent = hoten || '';
+        }
+    });
+
+    // 3. XỬ LÝ NÚT XUẤT SMS
+    var formSMS = document.querySelector('#modalXuatSMS form');
+    if (formSMS) {
+        formSMS.addEventListener('submit', function() {
+            var btnSubmit = document.getElementById('btnSubmitSMS');
+            var iconSMS = document.getElementById('iconSMS');
+            var textSMS = document.getElementById('textSMS');
+
+            if (btnSubmit) btnSubmit.disabled = true;
+            if (iconSMS) iconSMS.className = 'spinner-border spinner-border-sm me-1';
+            if (textSMS) textSMS.textContent = 'Đang xuất file...';
+
+            setTimeout(function() {
+                var modalElem = document.getElementById('modalXuatSMS');
+                if (modalElem && window.bootstrap) {
+                    var modalInstance = bootstrap.Modal.getInstance(modalElem);
+                    if (modalInstance) modalInstance.hide();
+                }
+                if (btnSubmit) btnSubmit.disabled = false;
+                if (iconSMS) iconSMS.className = 'fa-solid fa-download me-1';
+                if (textSMS) textSMS.textContent = 'Đồng ý & Xuất file';
             }, 2000);
         });
     }

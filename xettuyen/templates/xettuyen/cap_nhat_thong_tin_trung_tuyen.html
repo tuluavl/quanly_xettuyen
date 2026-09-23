@@ -6,6 +6,7 @@
 {% block breadcrumb %}Cập Nhật Trúng Tuyển{% endblock %}
 
 {% block content %}
+
 <div class="card-box">
     <h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">CẬP NHẬT THÔNG TIN TRÚNG TUYỂN</h4>
 
@@ -81,37 +82,38 @@
     </div>
 
     <!-- BẢNG HIỂN THỊ DỮ LIỆU -->
-    <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100">
+    <table class="table table-bordered table-striped dataTable align-middle text-nowrap w-100 ">
         <thead>
             <tr>
-                <th>STT</th>
-                <th>CCCD</th>
-                <th>Mã ĐKXT</th>
-                <th>SBD</th>
-                <th>Mã nơi sinh</th>
-                <th>Tên giải HSG</th>
-                <th>Tên môn HSG</th>
-                <th>Tên hạng HSG</th>
-                <th>Năm HSG</th>
-                <th>Ngày sinh</th>
-                <th>Giới tính</th>
-                <th>Dân tộc</th>
-                <th>Email SV</th>
-                <th>MSSV</th>
-                <th>Mật khẩu Online</th>
-                <th>Email UEH</th>
-                <th>Mật khẩu Email</th>
-                <th>Tổng điểm</th>
-                <th>ĐTC0 PT1</th>
-                <th>ĐTC0 PT2</th>
-                <th>Loại CCQT UID</th>
-                <th>Số điểm CCQT</th>
-                <th>Ngày thi CCQT</th>
-                <th>Ngày thi CCQT mới</th>
-                <th>ĐTB Lớp 10</th>
-                <th>ĐTB Lớp 11</th>
-                <th>ĐTB Lớp 12</th>
-                <th>Hành động</th>
+                <th class="text-center">STT</th>
+                <th class="text-center">CCCD</th>
+                <th class="text-center">Mã ĐKXT</th>
+                <th class="text-center">SBD</th>
+                <th class="text-center">Mã nơi sinh</th>
+                <th class="text-center">Tên giải HSG</th>
+                <th class="text-center">Tên môn HSG</th>
+                <th class="text-center">Tên hạng HSG</th>
+                <th class="text-center">Năm HSG</th>
+                <th class="text-center">Ngày sinh</th>
+                <th class="text-center">Giới tính</th>
+                <th class="text-center">Dân tộc</th>
+                <th class="text-center">Email SV</th>
+				<th class="text-center">Điện thoại</th>
+                <th class="text-center">MSSV</th>
+                <th class="text-center">Mật khẩu Online</th>
+                <th class="text-center">Email UEH</th>
+                <th class="text-center">Mật khẩu Email</th>
+                <th class="text-center">Tổng điểm</th>
+                <th class="text-center">ĐTC0 PT1</th>
+                <th class="text-center">ĐTC0 PT2</th>
+                <th class="text-center">Loại CCQT UID</th>
+                <th class="text-center">Số điểm CCQT</th>
+                <th class="text-center">Ngày thi CCQT</th>
+                <th class="text-center">Ngày thi CCQT mới</th>
+                <th class="text-center">ĐTB Lớp 10</th>
+                <th class="text-center">ĐTB Lớp 11</th>
+                <th class="text-center">ĐTB Lớp 12</th>
+                <th class="text-center">Hành động</th>
             </tr>
         </thead>
         <tbody>
@@ -122,18 +124,19 @@
                 <td class="fw-bold">{{ item.ma_dkxt|default:"" }}</td>
                 <td class="text-center">{{ item.sbd|default:"" }}</td>
                 <td class="text-center">{{ item.ma_noi_sinh|default:"" }}</td>
-                <td><span class="badge bg-primary">{{ item.ten_giai_hsg|default:"" }}</span></td>
-                <td><span class="badge bg-primary">{{ item.ten_mon_hsg|default:"" }}</span></td>
-                <td><span class="badge bg-primary">{{ item.ten_hang_hsg|default:"" }}</span></td>
-                <td><span class="badge bg-primary">{{ item.nam_hsg|default:"" }}</span></td>
+                <td class="text-center"><span class="badge bg-primary">{{ item.ten_giai_hsg|default:"" }}</span></td>
+                <td class="text-center"><span class="badge bg-primary">{{ item.ten_mon_hsg|default:"" }}</span></td>
+                <td class="text-center"><span class="badge bg-primary">{{ item.ten_hang_hsg|default:"" }}</span></td>
+                <td class="text-center"><span class="badge bg-primary">{{ item.nam_hsg|default:"" }}</span></td>
                 <td class="text-center">{{ item.ngay_sinh|date:"d/m/Y"|default:"" }}</td>
                 <td class="text-center">{{ item.gioi_tinh|default:"" }}</td>
-                <td>{{ item.dan_toc|default:"" }}</td>
+                <td class="text-center">{{ item.dan_toc|default:"" }}</td>
                 <td>{{ item.email_sv|default:"" }}</td>
-                <td class="fw-bold text-success">{{ item.mssv|default:"" }}</td>
-                <td><code>{{ item.mat_khau_online|default:"" }}</code></td>
-                <td>{{ item.email_ueh|default:"" }}</td>
-                <td><code>{{ item.mat_khau_email|default:"-" }}</code></td>
+				<td>{{ item.dien_thoai|default:"" }}</td>
+				<td class="fw-bold text-success">{{ item.mssv|default:"" }}</td>
+                <td class="fw-bold text-success">{{ item.mat_khau_online|default:"" }}</td>
+				<td class="fw-bold text-success">{{ item.email_ueh|default:"" }}</td>
+                <td class="fw-bold text-success">{{ item.mat_khau_email|default:"-" }}</td>
                 <td class="text-center fw-bold text-danger">{{ item.tong_diem|default:"" }}</td>
                 <td class="text-center">{{ item.dtc0_pt1|default:"" }}</td>
                 <td class="text-center">{{ item.dtc0_pt2|default:"" }}</td>
@@ -197,7 +200,7 @@
                     <h5 class="modal-title fw-bold"><i class="fas fa-user-edit me-2"></i>Chỉnh Sửa Thông Tin Thí Sinh</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body px-4 py-3">
+                <div class="modal-body px-4 py-3" style="max-height: 68vh; overflow-y: auto;">
                     
                     <!-- Nhóm 1: Thông tin cá nhân & Định danh -->
                     <div class="mb-4">
@@ -249,6 +252,10 @@
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Email SV</label>
                                 <input type="email" id="edit_email_sv" name="email_sv" class="form-control">
+                            </div> 
+							<div class="col-md-3">
+                                <label class="form-label fw-bold">Điện thoại</label>
+                                <input type="email" id="edit_dien_thoai" name="dien_thoai" class="form-control">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold">Mật khẩu Online</label>
@@ -372,7 +379,7 @@
 </div>
 
 <script>
-    function openEditModal(id, cccd, ma_dkxt, sbd, ma_noi_sinh, ten_giai_hsg, ten_mon_hsg, ten_hang_hsg, nam_hsg, ngay_sinh, gioi_tinh, dan_toc, email_sv, mssv, mat_khau_online, email_ueh, mat_khau_email, tong_diem, dtc0_pt1, dtc0_pt2, loai_ccqt_uid, so_diem_ccqt, ngay_thi_ccqt, ngay_thi_ccqt_new, diem_tb_lop10, diem_tb_lop11, diem_tb_lop12) {
+    function openEditModal(id, cccd, ma_dkxt, sbd, ma_noi_sinh, ten_giai_hsg, ten_mon_hsg, ten_hang_hsg, nam_hsg, ngay_sinh, gioi_tinh, dan_toc, email_sv, dien_thoai, mssv, mat_khau_online, email_ueh, mat_khau_email, tong_diem, dtc0_pt1, dtc0_pt2, loai_ccqt_uid, so_diem_ccqt, ngay_thi_ccqt, ngay_thi_ccqt_new, diem_tb_lop10, diem_tb_lop11, diem_tb_lop12) {
         $('#editForm').attr('action', `/cap-nhat-trung-tuyen/sua/${id}/`);
         
         $('#edit_cccd').val(cccd || '');
@@ -388,6 +395,7 @@
         $('#edit_gioi_tinh').val(gioi_tinh || '');
         $('#edit_dan_toc').val(dan_toc || '');
         $('#edit_email_sv').val(email_sv || '');
+		$('#edit_dien_thoai').val(dien_thoai || '');
         $('#edit_mssv').val(mssv || '');
         $('#edit_mat_khau_online').val(mat_khau_online || '');
         $('#edit_email_ueh').val(email_ueh || '');
