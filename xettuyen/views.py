@@ -778,83 +778,100 @@ def manage_users(request):
     }
     return render(request, 'xettuyen/manage_users.html', context)
     
-#PHÂN HỆ QUẢN LÝ TỔ HỢP MÔN
-@custom_login_required
-@check_permission('to_hop_mon')
-def to_hop_mon(request):
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT stt, ma_to_hop_mon, ten_to_hop_mon, ma_mon_thi FROM thm ORDER BY ma_to_hop_mon ASC")
-        rows = cursor.fetchall()
-
-    danh_sach = []
-    for row in rows:
-        ma_mon_raw = str(row[3] or '').strip()
-        if ',' in ma_mon_raw:
-            mon_list = [m.strip() for m in ma_mon_raw.split(',')]
-        elif '-' in ma_mon_raw:
-            mon_list = [m.strip() for m in ma_mon_raw.split('-')]
-        else:
-            mon_list = ma_mon_raw.split()
-
-        danh_sach.append({
-            'stt': row[0],
-            'ma_to_hop': row[1] or '',
-            'ten_to_hop': row[2] or '',
-            'mon_1': mon_list[0] if len(mon_list) > 0 else '',
-            'mon_2': mon_list[1] if len(mon_list) > 1 else '',
-            'mon_3': mon_list[2] if len(mon_list) > 2 else '',
-        })
-
-    return render(request, 'xettuyen/to_hop_mon.html', {
-        'danh_sach': danh_sach,
-        'tong_so': len(danh_sach)
-    })
-
-
+#IMPORT TỔ HỢP MÔN
 @custom_login_required
 @check_permission('import_to_hop_mon')
 def import_to_hop_mon(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
         try:
-            wb = openpyxl.load_workbook(excel_file)
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
             ws = wb.active
             rows = list(ws.iter_rows(values_only=True))
 
             if len(rows) > 1:
-                objects_to_create = []
+                # 1. Đọc dòng tiêu đề (Header) để xác định vị trí cột động
+                headers = [str(cell or '').strip().lower() for cell in rows[0]]
 
-                for i, row in enumerate(rows[1:], 1):
+                # Tìm chỉ số vị trí cột dựa theo tiêu đề (Không phụ thuộc vào cột STT)
+                idx_ma = next((i for i, h in enumerate(headers) if 'mã tổ hợp' in h or 'ma_to_hop' in h), None)
+                idx_ten = next((i for i, h in enumerate(headers) if 'tên tổ hợp' in h or 'ten_to_hop' in h), None)
+                idx_mon = next((i for i, h in enumerate(headers) if 'mã môn' in h or 'ma_mon' in h), None)
+
+                # Nếu không khớp tiêu đề, gán vị trí mặc định theo file mẫu (1: Mã, 2: Tên, 3: Môn thi)
+                if idx_ma is None: idx_ma = 1 if len(headers) >= 4 else 0
+                if idx_ten is None: idx_ten = 2 if len(headers) >= 4 else 1
+                if idx_mon is None: idx_mon = 3 if len(headers) >= 4 else 2
+
+                # 2. Lấy dữ liệu tổ hợp môn hiện có trong CSDL
+                existing_objs = {
+                    obj.ma_to_hop_mon: obj 
+                    for obj in ToHopMon.objects.all()
+                }
+
+                # 3. Lọc và khử trùng lặp dữ liệu trong file Excel
+                excel_data = {}
+                for row in rows[1:]:
                     if not row or not any(row):
                         continue
 
-                    ma_to_hop = str(row[0] or '').strip()
-                    ten_to_hop = str(row[1] or '').strip()
-                    ma_mon = str(row[2] or '').strip()
+                    ma_to_hop = str(row[idx_ma] or '').strip() if idx_ma < len(row) else ''
+                    ten_to_hop = str(row[idx_ten] or '').strip() if idx_ten < len(row) else ''
+                    ma_mon = str(row[idx_mon] or '').strip() if idx_mon < len(row) else ''
 
                     if ma_to_hop:
-                        objects_to_create.append(
+                        excel_data[ma_to_hop] = {
+                            'ten_to_hop_mon': ten_to_hop,
+                            'ma_mon_thi': ma_mon,
+                        }
+
+                # 4. Phân loại danh sách Thêm mới & Cập nhật (Bỏ qua trường STT)
+                to_create = []
+                to_update = []
+
+                for ma_to_hop, data in excel_data.items():
+                    if ma_to_hop in existing_objs:
+                        # Mã đã tồn tại -> Cập nhật Tên & Mã môn
+                        obj = existing_objs[ma_to_hop]
+                        obj.ten_to_hop_mon = data['ten_to_hop_mon']
+                        obj.ma_mon_thi = data['ma_mon_thi']
+                        to_update.append(obj)
+                    else:
+                        # Mã chưa có -> Thêm mới (Không truyền trường stt)
+                        to_create.append(
                             ToHopMon(
-                                stt=i,
                                 ma_to_hop_mon=ma_to_hop,
-                                ten_to_hop_mon=ten_to_hop,
-                                ma_mon_thi=ma_mon,
+                                ten_to_hop_mon=data['ten_to_hop_mon'],
+                                ma_mon_thi=data['ma_mon_thi'],
                             )
                         )
 
-                if objects_to_create:
-                    # Tối ưu truy vấn: Lưu/Cập nhật hàng loạt trong 1 Query duy nhất
-                    ToHopMon.objects.bulk_create(
-                        objects_to_create,
-                        update_conflicts=True,
-                        unique_fields=['ma_to_hop_mon'],  # Cột trùng khóa chính/unique
-                        update_fields=['ten_to_hop_mon', 'ma_mon_thi'],  # Các cột cần cập nhật lại khi bị trùng
+                # 5. Thực thi Lưu/Cập nhật vào CSDL
+                if to_create:
+                    ToHopMon.objects.bulk_create(to_create)
+
+                if to_update:
+                    ToHopMon.objects.bulk_update(
+                        to_update, 
+                        fields=['ten_to_hop_mon', 'ma_mon_thi']
                     )
 
-                messages.success(request, 'Import danh sách tổ hợp môn thành công!')
+                messages.success(
+                    request, 
+                    f'Import thành công! Thêm mới: {len(to_create)} tổ hợp, Cập nhật: {len(to_update)} tổ hợp.'
+                )
         except Exception as e:
             messages.error(request, f'Lỗi khi import file Excel: {str(e)}')
 
+    return redirect('to_hop_mon')
+    
+#XÓA TOÀN BỘ TỔ HỢP MÔN    
+@custom_login_required
+@check_permission('import_to_hop_mon')
+def xoa_tat_ca_to_hop_mon(request):
+    if request.method == 'POST':
+        count, _ = ToHopMon.objects.all().delete()
+        messages.success(request, f'Đã xóa thành công {count} tổ hợp môn!')
     return redirect('to_hop_mon')
 
 
