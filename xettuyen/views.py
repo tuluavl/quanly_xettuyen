@@ -966,15 +966,26 @@ def normalize_cccd(val):
         s = s[:-2]
     return s.zfill(12) if len(s) > 0 and len(s) < 12 else s
 
+#QUẢN LÝ ĐIỂM VSAT
+from django.db.models import Q, Count
+from django.http import JsonResponse
+from django.shortcuts import render
+from .models import DiemThiVsat  # Đảm bảo tên Model khớp với dự án của bạn
+
 @custom_login_required
 @check_permission('danh_sach_diem_vsat')
 def danh_sach_diem_vsat(request):
     """Hàm hiển thị danh sách và trả dữ liệu Ajax DataTables Server-side"""
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('draw'):
-        draw = int(request.GET.get('draw', 1))
-        start = int(request.GET.get('start', 0))
-        length = int(request.GET.get('length', 10))
-        search_val = request.GET.get('search[value]', '').strip()
+    
+    # Lấy tham số từ POST (hoặc GET nếu truy cập thủ công)
+    req_data = request.POST if request.method == 'POST' else request.GET
+
+    # Kiểm tra nếu là Request gọi AJAX lấy dữ liệu DataTables
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or req_data.get('draw'):
+        draw = int(req_data.get('draw', 1))
+        start = int(req_data.get('start', 0))
+        length = int(req_data.get('length', 10))
+        search_val = req_data.get('search[value]', '').strip()
 
         base_qs = DiemThiVsat.objects.all()
         records_total = base_qs.count()
@@ -988,7 +999,7 @@ def danh_sach_diem_vsat(request):
         records_filtered = queryset.count()
         data_slice = queryset[start:start + length] if length != -1 else queryset
 
-        # Hàm trợ giúp làm tròn điểm số 2 chữ số thập phân và xử lý None
+        # Hàm trợ giúp định dạng số và làm tròn điểm 2 chữ số thập phân
         def fmt(val):
             if val is None:
                 return ''
