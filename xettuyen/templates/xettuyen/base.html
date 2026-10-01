@@ -259,33 +259,64 @@
             </li>
             {% endif %}
 
-            <!-- 6. Cập nhật thông tin trúng tuyển -->
-            {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'cap_nhat_trung_tuyen' in request.session.permissions %}
+            <!-- MENU CẤP 1: DANH SÁCH TRÚNG TUYỂN (CHA) -->
+            {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'cap_nhat_trung_tuyen' in request.session.permissions or 'ds_trung_tuyen' in request.session.permissions or 'in_giay_bao' in request.session.permissions %}
             <li>
-                <a href="{% url 'danh_sach_cap_nhat_trung_tuyen' %}" class="nav-link {% if request.resolver_match.url_name == 'danh_sach_cap_nhat_trung_tuyen' %}active{% endif %}" title="Cập nhật thông tin trúng tuyển">
-                    <i class="fa-solid fa-user-pen"></i>
-                    <span class="nav-text">Cập nhật thông tin trúng tuyển</span>
+                <a href="#submenuTrungTuyen" 
+                   class="nav-link d-flex align-items-center justify-content-between {% if request.resolver_match.url_name not in 'danh_sach_cap_nhat_trung_tuyen danh_sach_trung_tuyen ds_in_giay_bao' %}collapsed{% endif %}" 
+                   data-bs-toggle="collapse" 
+                   role="button" 
+                   aria-expanded="{% if request.resolver_match.url_name in 'danh_sach_cap_nhat_trung_tuyen danh_sach_trung_tuyen ds_in_giay_bao' %}true{% else %}false{% endif %}" 
+                   title="Danh sách trúng tuyển">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span class="nav-text">Danh sách trúng tuyển</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down small toggle-icon nav-text"></i>
                 </a>
-            </li>
-            {% endif %}
 
-            <!-- 7. Danh sách trúng tuyển -->
-            {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'ds_trung_tuyen' in request.session.permissions %}
-            <li>
-                <a href="{% url 'danh_sach_trung_tuyen' %}" class="nav-link {% if request.resolver_match.url_name == 'danh_sach_trung_tuyen' %}active{% endif %}" title="Danh sách trúng tuyển">
-                    <i class="fa-solid fa-user-check"></i>
-                    <span class="nav-text">Danh sách trúng tuyển</span>
-                </a>
-            </li>
-            {% endif %}
+                <!-- MENU CẤP 2 (MENU CON) -->
+                <div class="collapse submenu-container {% if request.resolver_match.url_name in 'danh_sach_cap_nhat_trung_tuyen danh_sach_trung_tuyen ds_in_giay_bao' %}show{% endif %}" id="submenuTrungTuyen">
+                    <ul class="list-unstyled p-0 m-0">
+                        
+                        <!-- 1. Cập nhật thông tin trúng tuyển -->
+                        {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'cap_nhat_trung_tuyen' in request.session.permissions %}
+                        <li>
+                            <a href="{% url 'danh_sach_cap_nhat_trung_tuyen' %}" 
+                               class="nav-link {% if request.resolver_match.url_name == 'danh_sach_cap_nhat_trung_tuyen' %}active{% endif %}" 
+                               title="Cập nhật thông tin trúng tuyển">
+                                <i class="fa-solid fa-user-pen"></i>
+                                <span class="nav-text">Cập nhật thông tin TT</span>
+                            </a>
+                        </li>
+                        {% endif %}
 
-            <!-- 8. In giấy báo -->
-            {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'in_giay_bao' in request.session.permissions %}
-            <li>
-                <a href="{% url 'ds_in_giay_bao' %}" class="nav-link {% if request.resolver_match.url_name == 'ds_in_giay_bao' %}active{% endif %}" title="In giấy báo">
-                    <i class="fa-solid fa-print"></i>
-                    <span class="nav-text">In giấy báo</span>
-                </a>
+                        <!-- 2. Danh sách trúng tuyển -->
+                        {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'ds_trung_tuyen' in request.session.permissions %}
+                        <li>
+                            <a href="{% url 'danh_sach_trung_tuyen' %}" 
+                               class="nav-link {% if request.resolver_match.url_name == 'danh_sach_trung_tuyen' %}active{% endif %}" 
+                               title="Danh sách trúng tuyển">
+                                <i class="fa-solid fa-user-check"></i>
+                                <span class="nav-text">Danh sách trúng tuyển</span>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <!-- 3. In giấy báo -->
+                        {% if request.session.role_code == 'admin' or request.session.role_name in 'Quản trị viên Administrator' or 'in_giay_bao' in request.session.permissions %}
+                        <li>
+                            <a href="{% url 'ds_in_giay_bao' %}" 
+                               class="nav-link {% if request.resolver_match.url_name == 'ds_in_giay_bao' %}active{% endif %}" 
+                               title="In giấy báo">
+                                <i class="fa-solid fa-print"></i>
+                                <span class="nav-text">In giấy báo</span>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                    </ul>
+                </div>
             </li>
             {% endif %}
 
@@ -302,38 +333,45 @@
     </div>
 
     <!-- Main Content Panel -->
-    <div id="main-content">
-        <div class="top-navbar">
-            <button class="toggle-btn" id="sidebar-toggle" title="Đóng/Mở Menu">
-                <i class="fa-solid fa-bars"></i>
+<div id="main-content">
+    <div class="top-navbar">
+        <button class="toggle-btn" id="sidebar-toggle" title="Đóng/Mở Menu">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        
+        <!-- THÔNG TIN NGƯỜI DÙNG DÒNG TOPBAR -->
+        <div class="dropdown me-3">
+            <button class="btn text-white border-0 p-0 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="fw-semibold small">
+                    {% if request.session.full_name %}
+                        {{ request.session.full_name }}
+                    {% elif request.session.username %}
+                        {{ request.session.username }}
+                    {% else %}
+                        Khách
+                    {% endif %}
+                </span>
+                <i class="fa-solid fa-circle-user fa-lg"></i>
+                <i class="fa-solid fa-caret-down small"></i>
             </button>
-            
-            <div class="dropdown me-2">
-                <button class="btn text-white border-0 p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-solid fa-circle-user fa-xl"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li class="px-3 py-1 text-muted small">
-    Tài khoản: 
-    <strong>
-        {% if request.session.full_name %}
-            {{ request.session.full_name }}
-        {% elif request.session.username %}
-            {{ request.session.username }}
-        {% else %}
-            Khách
-        {% endif %}
-    </strong>
-</li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <a class="dropdown-item text-danger fw-bold" href="{% url 'logout' %}">
-                            <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
-                        </a>
-                    </li>
-                </ul>
-            </div>
+
+            <!-- DROPDOWN MENU KHI CLICK VÀO TÊN/AVATAR -->
+            <ul class="dropdown-menu dropdown-menu-end shadow mt-2">
+                <li class="px-3 py-1 text-muted small">
+                    Vai trò: 
+                    <strong class="text-dark">
+                        {{ request.session.role_name|default:"Chưa phân vai trò" }}
+                    </strong>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-danger fw-bold" href="{% url 'logout' %}">
+                        <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
+                    </a>
+                </li>
+            </ul>
         </div>
+    </div>
 
         <div class="content-body">
             <!-- Tiêu đề động đổi theo từng trang -->
@@ -346,7 +384,7 @@
                     <small class="text-muted fs-7">{% block page_subtitle %}Danh sách sinh viên đăng ký học{% endblock %}</small>
                 </div>
                 <div class="text-muted small">
-                    <i class="fa-solid fa-house"></i> / {% block breadcrumb %}Danh Sách Đăng Ký{% endblock %}
+                    <i class="fa-solid fa-house"></i> / {% block breadcrumb %}Danh sách đăng ký{% endblock %}
                 </div>
             </div>
 
