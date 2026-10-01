@@ -16,18 +16,28 @@
 </style>
 
 <div class="card-box">
-    <h4 class="text-center fw-normal mb-4" style="letter-spacing: 0.5px;">DANH SÁCH ĐIỂM THI V-SAT</h4>
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h4 class="text-center fw-bold mb-4 text-primary" style="letter-spacing: 0.5px;">DANH SÁCH ĐIỂM THI V-SAT</h4>
+    
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div class="fw-bold">Tổng số thí sinh có điểm V-SAT: {{ total_count|default:0 }}</div>
+        
         <div class="d-flex gap-2">
-            <!-- Nút Import: Kiểm tra quyền Admin hoặc import_diem_vsat -->
+            <!-- Nút Import Excel V-SAT -->
             {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'import_diem_vsat' in request.session.permissions %}
                 <button type="button" class="btn btn-custom-green btn-sm fw-bold px-3 py-1" data-bs-toggle="modal" data-bs-target="#importModal" data-toggle="modal" data-target="#importModal">
                     <i class="fas fa-file-import me-1 mr-1"></i>Import Excel V-SAT
                 </button>
             {% endif %}
+
+            <!-- Nút Xuất Excel V-SAT (Bổ sung mới) -->
+            {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xuat_excel_diem_vsat' in request.session.permissions %}
+                <a href="{% url 'xuat_excel_diem_vsat' %}" class="btn btn-custom-yellow btn-sm fw-bold px-3 py-1">
+                    <i class="fas fa-file-excel me-1 mr-1"></i>Xuất Excel V-SAT
+                </a>
+            {% endif %}
         </div>
     </div>
+
     <!-- KHỐI THỐNG KÊ SỐ LƯỢNG THÍ SINH THEO TỔ HỢP -->
     <div class="row row-cols-2 row-cols-sm-3 row-cols-md-6 g-2 mb-4">
         <div class="col">
@@ -68,8 +78,6 @@
         </div>
     </div>
 
-    
-
     <div class="table-responsive">
         <table id="vsatTable" class="table table-bordered table-striped nowrap" style="width:100%">
             <thead>
@@ -106,11 +114,11 @@
     </div>
 </div>
 
-<!-- Modal Import Excel VSAT -->
+<!-- Modal Import Excel VSAT (ĐÃ SỬA URL ACTION SANG import_diem_vsat) -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="{% url 'danh_sach_diem_vsat' %}" enctype="multipart/form-data">
+            <form method="POST" action="{% url 'import_diem_vsat' %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="fas fa-file-excel me-2 mr-2"></i>Import danh sách điểm V-SAT</h5>
@@ -269,8 +277,7 @@
 
             // Mở modal Sửa khi click nút Sửa
             $('#vsatTable').on('click', '.edit-btn', function() {
-                var id = $(this).data('id');
-                $.get(`/diem-vsat/sua/${id}/`, function(res) {
+                var id = $(this).data('id');$.get(`/diem-vsat/sua/${id}/`, function(res) {
                     $('#edit_id').val(res.id);
                     $('#form_so_cccd').val(res.so_cccd);
                     $('#form_ho_ten').val(res.ho_ten);
