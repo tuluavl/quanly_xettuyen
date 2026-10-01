@@ -215,11 +215,15 @@
 
             var table = $('#vsatTable').DataTable({
                 "processing": true,
-                "serverSide": true,
-                "scrollX": true,
-                "ajax": "{% url 'danh_sach_diem_vsat' %}",
-                "pageLength": 25,
-                "lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
+				"serverSide": true, // Bắt buộc đổi sang true để đồng bộ với backend
+				"scrollX": true,
+				"ajax": {
+					"url": "{% url 'danh_sach_diem_vsat' %}",
+					"type": "GET",
+					"headers": { 'X-Requested-With': 'XMLHttpRequest' }
+				},
+				"pageLength": 25,
+				"lengthMenu": [[10, 25, 50, 100], [10, 25, 50, 100]],
                 "columns": [
                     { "data": "stt", "className": "text-center", "orderable": false },
                     { "data": "so_cccd", "className": "text-center fw-bold text-primary" },
