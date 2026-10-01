@@ -2459,6 +2459,7 @@ def export_excel_hoso_trung_tuyen(request):
 
     return response
     
+ 
     
 
 # FILES 5: 2. XUẤT DANH SACH IN LƯU HỒ SƠ
@@ -2519,7 +2520,7 @@ def export_danh_sach_trung_tuyen_excel(request):
             # --- STT & ĐỊNH DANH HỒ SƠ / SINH VIÊN ---
             'TT': 'stt', 'STT': 'stt',
             'IDSV': 'IDSV', 'ID SV': 'IDSV', 'MÃ SV BỘ': 'IDSV', 'MÃ DỰ TUYỂN': 'IDSV', 'ID SINH VIÊN': 'IDSV',
-            'MHS': 'ma_dkxt', 'SỐ CV': 'so_cv', 'MÃ HỒ SƠ': 'so_cv', 'SỐ CÔNG VĂN': 'so_cv', 'SO_CV': 'so_cv',
+            'MHS': 'so_cv', 'SỐ CV': 'so_cv', 'MÃ HỒ SƠ': 'so_cv', 'SỐ CÔNG VĂN': 'so_cv', 'SO_CV': 'so_cv',
             'MÃ SV': 'ma_sv', 'MSSV': 'ma_sv', 'MÃ SINH VIÊN': 'ma_sv', 'MA_SV': 'ma_sv',
             'CCCD': 'cccd', 'SỐ CCCD': 'cccd', 'CMND': 'cccd', 'CĂN CƯỚC': 'cccd',
             'BARCODE': 'barcode', 'MÃ VẠCH': 'barcode',
@@ -2539,8 +2540,8 @@ def export_danh_sach_trung_tuyen_excel(request):
 
             # --- PHƯƠNG THỨC XÉT & NGÀNH ---
             'MÃ ĐKXT': 'ma_dkxt', 'MA_DKXT': 'ma_dkxt', 'MÃ ĐĂNG KÝ XÉT TUYỂN': 'ma_dkxt',
-            'MÃ-PTXT': 'ptxt', 'MÃ PTXT': 'ptxt', 'PTXT': 'phuong_thuc_xet', 'PHƯƠNG THỨC XÉT': 'phuong_thuc_xet', 'PHUONG_THUC_XET': 'phuong_thuc_xet',
-            'TÊN PTXT': 'phuong_thuc_xet', 'TÊN PHƯƠNG THỨC XÉT TUYỂN': 'phuong_thuc_xet',
+            'MÃ-PTXT': 'phuong_thuc_xet', 'MÃ PTXT': 'phuong_thuc_xet', 'PTXT': 'phuong_thuc_xet', 'PHƯƠNG THỨC XÉT': 'phuong_thuc_xet', 'PHUONG_THUC_XET': 'phuong_thuc_xet',
+            'TÊN PTXT': 'ptxt', 'TÊN PHƯƠNG THỨC XÉT TUYỂN': 'ptxt',
             'CTĐT': 'ctdt', 'CTĐỘ': 'ctdt', 'CHƯƠNG TRÌNH ĐÀO TẠO': 'ctdt', 'NGÀNH': 'ctdt', 'NGÀNH TRÚNG TUYỂN': 'ctdt', 'NGÀNH TT THPT': 'ctdt', 'NGÀNH TT THM': 'ctdt',
 
             # --- ĐIỂM THPT & TỔ HỢP TỐT NGHIỆP ---
