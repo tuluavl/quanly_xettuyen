@@ -966,7 +966,6 @@ def normalize_cccd(val):
         s = s[:-2]
     return s.zfill(12) if len(s) > 0 and len(s) < 12 else s
 
-#QUẢN LÝ ĐIỂM VSAT
 @custom_login_required
 @check_permission('danh_sach_diem_vsat')
 def danh_sach_diem_vsat(request):
@@ -989,35 +988,43 @@ def danh_sach_diem_vsat(request):
         records_filtered = queryset.count()
         data_slice = queryset[start:start + length] if length != -1 else queryset
 
+        # Hàm trợ giúp làm tròn điểm số 2 chữ số thập phân và xử lý None
+        def fmt(val):
+            if val is None:
+                return ''
+            if isinstance(val, (float, int)):
+                return round(val, 2)
+            return val
+
         data = []
         for idx, item in enumerate(data_slice, start=start + 1):
             data.append({
                 'id': item.id,
                 'stt': idx,
-                'so_cccd': item.so_cccd,
-                'ho_ten': item.ho_ten,
-                'di_vs': item.di_vs if item.di_vs is not None else '',
-                'ho_vs': item.ho_vs if item.ho_vs is not None else '',
-                'li_vs': item.li_vs if item.li_vs is not None else '',
-                'n1_vs': item.n1_vs if item.n1_vs is not None else '',
-                'si_vs': item.si_vs if item.si_vs is not None else '',
-                'su_vs': item.su_vs if item.su_vs is not None else '',
-                'to_vs': item.to_vs if item.to_vs is not None else '',
-                'va_vs': item.va_vs if item.va_vs is not None else '',
-                'max_score': item.max_score if item.max_score is not None else '',
-                'thmon_a00_vsat': item.thmon_a00_vsat if item.thmon_a00_vsat is not None else '',
-                'quy_doi_a00': item.quy_doi_a00 if item.quy_doi_a00 is not None else '',
-                'thmon_a01_vsat': item.thmon_a01_vsat if item.thmon_a01_vsat is not None else '',
-                'quy_doi_a01': item.quy_doi_a01 if item.quy_doi_a01 is not None else '',
-                'thmon_d01_vsat': item.thmon_d01_vsat if item.thmon_d01_vsat is not None else '',
-                'quy_doi_d01': item.quy_doi_d01 if item.quy_doi_d01 is not None else '',
-                'thmon_d07_vsat': item.thmon_d07_vsat if item.thmon_d07_vsat is not None else '',
-                'quy_doi_d07': item.quy_doi_d07 if item.quy_doi_d07 is not None else '',
-                'thmon_d09_vsat': item.thmon_d09_vsat if item.thmon_d09_vsat is not None else '',
-                'quy_doi_d09': item.quy_doi_d09 if item.quy_doi_d09 is not None else '',
-                'thmon_d14_vsat': item.thmon_d14_vsat if item.thmon_d14_vsat is not None else '',
-                'quy_doi_d14': item.quy_doi_d14 if item.quy_doi_d14 is not None else '',
-                'diem_thi_vsat_max': item.diem_thi_vsat_max if item.diem_thi_vsat_max is not None else '',
+                'so_cccd': item.so_cccd or '',
+                'ho_ten': item.ho_ten or '',
+                'di_vs': fmt(item.di_vs),
+                'ho_vs': fmt(item.ho_vs),
+                'li_vs': fmt(item.li_vs),
+                'n1_vs': fmt(item.n1_vs),
+                'si_vs': fmt(item.si_vs),
+                'su_vs': fmt(item.su_vs),
+                'to_vs': fmt(item.to_vs),
+                'va_vs': fmt(item.va_vs),
+                'max_score': fmt(item.max_score),
+                'thmon_a00_vsat': fmt(item.thmon_a00_vsat),
+                'quy_doi_a00': fmt(item.quy_doi_a00),
+                'thmon_a01_vsat': fmt(item.thmon_a01_vsat),
+                'quy_doi_a01': fmt(item.quy_doi_a01),
+                'thmon_d01_vsat': fmt(item.thmon_d01_vsat),
+                'quy_doi_d01': fmt(item.quy_doi_d01),
+                'thmon_d07_vsat': fmt(item.thmon_d07_vsat),
+                'quy_doi_d07': fmt(item.quy_doi_d07),
+                'thmon_d09_vsat': fmt(item.thmon_d09_vsat),
+                'quy_doi_d09': fmt(item.quy_doi_d09),
+                'thmon_d14_vsat': fmt(item.thmon_d14_vsat),
+                'quy_doi_d14': fmt(item.quy_doi_d14),
+                'diem_thi_vsat_max': fmt(item.diem_thi_vsat_max),
             })
 
         return JsonResponse({
