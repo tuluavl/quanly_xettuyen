@@ -41,6 +41,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse, Http404
 from django.contrib import messages
+from django.urls import reverse
 from django.db import connection, transaction
 from django.db.models import Q, Count, Subquery, OuterRef
 from django.core.paginator import Paginator
@@ -50,7 +51,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.utils.safestring import mark_safe
-from .models import CustomUser, Role, RolePermission, Permission, ThiSinhData, KetQuaLocAo, ToHopMon, TruongTHPT, DiemThiVsat, MauImportGiayBao, CapNhatThongTinTrungTuyen, CauHinhGiayBao, AuditLog, UserProfile
+from .models import CustomUser, Role, RolePermission, Permission, ThiSinhData, KetQuaLocAo, ToHopMon, TruongTHPT, DiemThiVsat, MauImportGiayBao, CapNhatThongTinTrungTuyen, CauHinhGiayBao, AuditLog, UserProfile, MauXuatExcel
 from .decorators import custom_login_required, check_permission
 from django.contrib.auth.decorators import login_required
 
@@ -1926,7 +1927,6 @@ def export_diem_chuan(request):
     wb.save(response)
     return response
 
-
 # -------------------------------------------------------------------
 # VIEW DANH SÁCH TRÚNG TUYỂN
 # -------------------------------------------------------------------
@@ -1934,20 +1934,74 @@ def export_diem_chuan(request):
 @check_permission('danh_sach_trung_tuyen')
 def danh_sach_trung_tuyen(request):
     ds_trung_tuyen = MauImportGiayBao.objects.all()
+    danh_sach = ThiSinhData.objects.filter(kq_TT='D')
+    
+    # Lấy danh sách tất cả các file mẫu Excel
+    danh_sach_mau = MauXuatExcel.objects.all().order_by('-nam_tuyen_sinh')
 
-    stats = {
-        'total': ds_trung_tuyen.count(),
-        'thpt': ds_trung_tuyen.filter(ptxt__icontains='THPT').count(),
-        'vsat': ds_trung_tuyen.filter(Q(ptxt__icontains='VSAT') | Q(ptxt__icontains='V-SAT')).count(),
-        'dgnl': ds_trung_tuyen.filter(ptxt__icontains='DGNL').count(),
-    }
+    # 1. Thống kê tổng quan (Top Cards)
+    stats = danh_sach.aggregate(
+        total=Count('pk'),
+        nv1=Count('pk', filter=Q(nv_TT=1) | Q(nv_TT='1')),
+        nv2=Count('pk', filter=Q(nv_TT=2) | Q(nv_TT='2')),
+        nv3=Count('pk', filter=Q(nv_TT=3) | Q(nv_TT='3')),
+        thpt=Count('pk', filter=Q(diem_thi_TT__icontains='THPT')),
+        dgnl=Count('pk', filter=Q(diem_thi_TT__icontains='DGNL')),
+        vsat=Count('pk', filter=Q(diem_thi_TT__icontains='VSAT') | Q(diem_thi_TT__icontains='V-SAT')),
+    )
+
+    # 2. Thống kê chi tiết theo Ngành trúng tuyển (ma_TT)
+    stats_nganh_qs = danh_sach.values('ma_TT').annotate(
+        tong_tt=Count('pk'),
+        nv1=Count('pk', filter=Q(nv_TT=1) | Q(nv_TT='1')),
+        nv2=Count('pk', filter=Q(nv_TT=2) | Q(nv_TT='2')),
+        nv3=Count('pk', filter=Q(nv_TT=3) | Q(nv_TT='3')),
+        thpt=Count('pk', filter=Q(diem_thi_TT__icontains='THPT')),
+        dgnl=Count('pk', filter=Q(diem_thi_TT__icontains='DGNL')),
+        vsat=Count('pk', filter=Q(diem_thi_TT__icontains='VSAT') | Q(diem_thi_TT__icontains='V-SAT')),
+    ).order_by('-tong_tt')
+
+    # 3. Lấy danh sách ctdt từ MauImportGiayBao và tạo Dict ánh xạ (Mã ngành -> Tên ngành)
+    mapping_nganh = {}
+    ctdt_list = ds_trung_tuyen.values_list('ctdt', flat=True).exclude(ctdt__isnull=True).distinct()
+    
+    for ctdt in ctdt_list:
+        if ctdt and ':' in ctdt:
+            ma, ten = ctdt.split(':', 1)
+            mapping_nganh[ma.strip()] = ten.strip()
+
+    # 4. Gán 'ten_nganh' vào từng dictionary trong stats_nganh
+    stats_nganh = list(stats_nganh_qs)
+    for item in stats_nganh:
+        ma_tt = str(item.get('ma_TT', '')).strip()
+        item['ten_nganh'] = mapping_nganh.get(ma_tt, 'Chưa xác định')
 
     context = {
         'danh_sach': ds_trung_tuyen,
         'stats': stats,
+        'danh_sach_mau': danh_sach_mau,  # ĐÃ SỬA: Đổi tên key thành 'danh_sach_mau' để khớp chính xác với Template HTML
+        'stats_nganh': stats_nganh,
     }
     return render(request, 'xettuyen/danh_sach_trung_tuyen.html', context)
 
+@custom_login_required
+@check_permission('danh_sach_trung_tuyen')
+def xoa_mau_excel(request, id):
+    if request.method == 'POST':
+        try:
+            mau_obj = MauXuatExcel.objects.get(id=id)
+            # Xóa file vật lý trong ổ đĩa nếu có
+            if mau_obj.file_mau:
+                mau_obj.file_mau.delete(save=False)
+            mau_obj.delete()
+            messages.success(request, "Đã xóa file mẫu Excel thành công!")
+        except MauXuatExcel.DoesNotExist:
+            messages.error(request, "File mẫu không tồn tại hoặc đã bị xóa!")
+        except Exception as e:
+            messages.error(request, f"Lỗi khi xóa: {str(e)}")
+
+    redirect_url = reverse('danh_sach_trung_tuyen') + '?tab=quan_ly_mau'
+    return redirect(redirect_url)
 
 # -------------------------------------------------------------------
 # 1. TẠO MASV & BARCODE KHÔNG TRÙNG CHO SINH VIÊN MỚI
@@ -2101,10 +2155,11 @@ def cap_nhat_so_cv(request):
 
 
 # -------------------------------------------------------------------
-# 3. ĐỒNG BỘ DỮ LIỆU BỔ SUNG SANG MẪU GiẤY BÁO
+# 3. ĐỒNG BỘ THÔNG TIN TRÚNG TUYỂN VÀO BẢNG CẬP NHẬT
 # -------------------------------------------------------------------
+# 1. CẬP NHẬT NÚT ĐỒNG BỘ DỮ LIỆU BỔ SUNG
 @custom_login_required
-@check_permission('danh_sach_trung_tuyen')  # Đã chuẩn hóa tên permission
+@check_permission('ds_trung_tuyen')
 def dong_bo_thong_tin_trung_tuyen(request):
     """Đồng bộ dữ liệu bổ sung từ CapNhatThongTinTrungTuyen sang MauImportGiayBao qua CCCD"""
     if request.method == 'POST':
@@ -2128,6 +2183,7 @@ def dong_bo_thong_tin_trung_tuyen(request):
                 email_val = getattr(src, 'email', None) or getattr(src, 'email_sv', None) or ''
                 ma_dkxt_val = getattr(src, 'ma_dkxt', None) or ''
 
+                # Xử lý định dạng ngày sinh về dd/mm/YYYY
                 ngay_sinh_raw = getattr(src, 'ngay_sinh', None)
                 ngay_sinh_val = ''
 
@@ -2145,6 +2201,7 @@ def dong_bo_thong_tin_trung_tuyen(request):
                     if not ngay_sinh_val:
                         ngay_sinh_val = ngay_sinh_str
 
+                # Cập nhật chính xác các trường theo yêu cầu
                 if masv_val:
                     item.IDSV = masv_val
                 if mssv_val:
@@ -2401,6 +2458,260 @@ def export_excel_hoso_trung_tuyen(request):
         df.to_excel(writer, sheet_name='DS import', index=False)
 
     return response
+    
+    
+
+# FILES 5: 2. XUẤT DANH SACH IN LƯU HỒ SƠ
+def _clean_header_str(text):
+    if not text:
+        return ""
+    return re.sub(r'\s+', ' ', str(text)).strip().upper()
+
+# FILES 5: XUẤT DANH SACH IN LƯU HỒ SƠ
+@custom_login_required
+@check_permission('ds_trung_tuyen')
+def export_danh_sach_trung_tuyen_excel(request):
+    # Lấy tham số năm từ request (mặc định 2026 nếu không truyền)
+    nam = request.GET.get('nam', 2026)
+    
+    # 1. Tìm mẫu xuất Excel tương ứng với năm tuyển sinh
+    mau_obj = MauXuatExcel.objects.filter(nam_tuyen_sinh=nam, loai_mau='ds_trung_tuyen').first()
+    
+    # Nếu năm được chọn chưa có mẫu riêng, tự động lấy mẫu của năm mới nhất hiện có trong DB
+    if not mau_obj:
+        mau_obj = MauXuatExcel.objects.filter(loai_mau='ds_trung_tuyen').order_by('-nam_tuyen_sinh').first()
+        
+    # Trường hợp trong hệ thống chưa từng upload bất kỳ mẫu Excel nào
+    if not mau_obj or not mau_obj.file_mau or not os.path.exists(mau_obj.file_mau.path):
+        messages.error(
+            request, 
+            f"Chưa có file mẫu Excel cho năm {nam}! Vui lòng truy cập trang Quản trị (Admin) để tải mẫu lên."
+        )
+        return redirect('danh_sach_trung_tuyen')
+
+    try:
+        # 2. Nạp workbook từ file mẫu
+        wb = openpyxl.load_workbook(mau_obj.file_mau.path)
+        ws = wb.active
+
+        # 3. Lấy dữ liệu thí sinh trúng tuyển từ Database
+        danh_sach = MauImportGiayBao.objects.all().order_by('so_cv', 'ho_ten')
+
+        # Tải trước dữ liệu Nơi sinh & Giới tính từ bảng CapNhatThongTinTrungTuyen vào Dict theo CCCD
+        extra_data_map = {
+            item.cccd: item 
+            for item in CapNhatThongTinTrungTuyen.objects.filter(cccd__isnull=False)
+        }
+
+        # 4. Thiết lập định dạng (Font, Khung, Căn lề)
+        thin_border = Border(
+            left=Side(style='thin', color='000000'),
+            right=Side(style='thin', color='000000'),
+            top=Side(style='thin', color='000000'),
+            bottom=Side(style='thin', color='000000')
+        )
+        font_data = Font(name='Times New Roman', size=11)
+        align_center = Alignment(horizontal='center', vertical='center')
+        align_left = Alignment(horizontal='left', vertical='center')
+
+        # 5. TỪ ĐIỂN ÁNH XẠ TIÊU ĐỀ EXCEL -> FIELD TRONG CSDL
+        MASTER_MAP = {
+            # --- STT & ĐỊNH DANH HỒ SƠ / SINH VIÊN ---
+            'TT': 'stt', 'STT': 'stt',
+            'IDSV': 'IDSV', 'ID SV': 'IDSV', 'MÃ SV BỘ': 'IDSV', 'MÃ DỰ TUYỂN': 'IDSV', 'ID SINH VIÊN': 'IDSV',
+            'MHS': 'ma_dkxt', 'SỐ CV': 'so_cv', 'MÃ HỒ SƠ': 'so_cv', 'SỐ CÔNG VĂN': 'so_cv', 'SO_CV': 'so_cv',
+            'MÃ SV': 'ma_sv', 'MSSV': 'ma_sv', 'MÃ SINH VIÊN': 'ma_sv', 'MA_SV': 'ma_sv',
+            'CCCD': 'cccd', 'SỐ CCCD': 'cccd', 'CMND': 'cccd', 'CĂN CƯỚC': 'cccd',
+            'BARCODE': 'barcode', 'MÃ VẠCH': 'barcode',
+
+            # --- THÔNG TIN CÁ NHÂN ---
+            'HỌ VÀ TÊN': 'ho_ten', 'HỌ TÊN': 'ho_ten', 'TÊN THÍ SINH': 'ho_ten', 'HO_TEN': 'ho_ten',
+            'NGÀY SINH': 'ngay_sinh', 'NS': 'ngay_sinh', 'NGAY_SINH': 'ngay_sinh',
+            'EMAIL': 'email', 'THƯ ĐIỆN TỬ': 'email',
+            'SĐT': 'dien_thoai', 'SỐ ĐIỆN THOẠI': 'dien_thoai', 'ĐIỆN THOẠI': 'dien_thoai', 'DIEN_THOAI': 'dien_thoai',
+            'NƠI SINH': 'noi_sinh', 'NOI SINH': 'noi_sinh', 'MÃ NƠI SINH': 'noi_sinh',
+            'GIỚI TÍNH': 'gioi_tinh', 'GIOI TINH': 'gioi_tinh', 'GT': 'gioi_tinh',
+
+            # --- ƯU TIÊN & HỌC BẠ ---
+            'ĐT': 'dtut', 'ĐỐI TƯỢNG': 'dtut', 'ĐỐI TƯỢNG ƯU TIÊN': 'dtut', 'ĐTUT': 'dtut',
+            'KV': 'kvut', 'KHU VỰC': 'kvut', 'KHU VỰC ƯU TIÊN': 'kvut', 'KVUT': 'kvut',
+            'HỌC BẠ': 'hoc_ba', 'HOC_BA': 'hoc_ba',
+
+            # --- PHƯƠNG THỨC XÉT & NGÀNH ---
+            'MÃ ĐKXT': 'ma_dkxt', 'MA_DKXT': 'ma_dkxt', 'MÃ ĐĂNG KÝ XÉT TUYỂN': 'ma_dkxt',
+            'MÃ-PTXT': 'ptxt', 'MÃ PTXT': 'ptxt', 'PTXT': 'phuong_thuc_xet', 'PHƯƠNG THỨC XÉT': 'phuong_thuc_xet', 'PHUONG_THUC_XET': 'phuong_thuc_xet',
+            'TÊN PTXT': 'phuong_thuc_xet', 'TÊN PHƯƠNG THỨC XÉT TUYỂN': 'phuong_thuc_xet',
+            'CTĐT': 'ctdt', 'CTĐỘ': 'ctdt', 'CHƯƠNG TRÌNH ĐÀO TẠO': 'ctdt', 'NGÀNH': 'ctdt', 'NGÀNH TRÚNG TUYỂN': 'ctdt', 'NGÀNH TT THPT': 'ctdt', 'NGÀNH TT THM': 'ctdt',
+
+            # --- ĐIỂM THPT & TỔ HỢP TỐT NGHIỆP ---
+            'THM THPT': 'pt2_tn_thm', 'PT2_TN_THM': 'pt2_tn_thm', 'TỔ HỢP THPT': 'pt2_tn_thm',
+            'MÃ MÔN 1 THPT': 'pt2_tn_mamon1', 'MÔN 1 THPT': 'pt2_tn_mamon1',
+            'ĐM1': 'pt2_tn_diemmon1', 'ĐIỂM M1': 'pt2_tn_diemmon1', 'ĐIỂM MÔN 1': 'pt2_tn_diemmon1', 'ĐIỂM MÔN 1 THPT': 'pt2_tn_diemmon1',
+            'MÃ MÔN 2 THPT': 'pt2_tn_mamon2', 'MÔN 2 THPT': 'pt2_tn_mamon2',
+            'ĐM2': 'pt2_tn_diemmon2', 'ĐIỂM M2': 'pt2_tn_diemmon2', 'ĐIỂM MÔN 2': 'pt2_tn_diemmon2', 'ĐIỂM MÔN 2 THPT': 'pt2_tn_diemmon2',
+            'MÃ MÔN 3 THPT': 'pt2_tn_mamon3', 'MÔN 3 THPT': 'pt2_tn_mamon3',
+            'ĐM3': 'pt2_tn_diemmon3', 'ĐIỂM M3': 'pt2_tn_diemmon3', 'ĐIỂM MÔN 3': 'pt2_tn_diemmon3', 'ĐIỂM MÔN 3 THPT': 'pt2_tn_diemmon3',
+
+            # --- ĐIỂM V-SAT & ĐÁNH GIÁ NĂNG LỰC ---
+            'ĐGNL': 'pt2_dgnl', 'ĐIỂM ĐGNL': 'pt2_dgnl', 'PT2_DGNL': 'pt2_dgnl',
+            'THM THM': 'pt2_vsat_thm', 'THM V-SAT': 'pt2_vsat_thm', 'PT2_VSAT_THM': 'pt2_vsat_thm',
+            'MÃ MÔN 1 VSAT': 'pt2_vsat_mamon1', 'MÔN 1 VSAT': 'pt2_vsat_mamon1',
+            'ĐIỂM M1 VSAT': 'pt2_vsat_diemmon1', 'ĐIỂM MÔN 1 VSAT': 'pt2_vsat_diemmon1',
+            'MÃ MÔN 2 VSAT': 'pt2_vsat_mamon2', 'MÔN 2 VSAT': 'pt2_vsat_mamon2',
+            'ĐIỂM M2 VSAT': 'pt2_vsat_diemmon2', 'ĐIỂM MÔN 2 VSAT': 'pt2_vsat_diemmon2',
+            'MÃ MÔN 3 VSAT': 'pt2_vsat_mamon3', 'MÔN 3 VSAT': 'pt2_vsat_mamon3',
+            'ĐIỂM M3 VSAT': 'pt2_vsat_diemmon3', 'ĐIỂM MÔN 3 VSAT': 'pt2_vsat_diemmon3',
+
+            # --- ĐIỂM TỔNG HỢP & QUY ĐỔI ---
+            'ĐIỂM CỘNG': 'pt2_diem_cong', 'ĐIỂM ƯU TIÊN': 'pt2_diem_cong',
+            'ĐIỂM TB THPT': 'pt2a_diemtbthpt', 'TB3M QĐ L10': 'pt2a_diemtbthpt', 'TB3M QĐ L11': 'pt2a_diemtbthpt', 'TB3M QĐ L12': 'pt2a_diemtbthpt',
+            'ĐIỂM QUY ĐỔI': 'pt2_diem_qd',
+            'ĐTC THPT': 'pt2_qd', 'ĐTC THM': 'pt2_qd', 'ĐIỂM XÉT TUYỂN': 'pt2_qd', 'PT2_QD': 'pt2_qd', 'ĐXT': 'pt2_qd',
+            'ĐTC0': 'dtc0', 'ĐTC0 THPT': 'dtc0', 'ĐTC0 THM': 'dtc0',
+            'ĐC': 'dc', 'ĐIỂM CHUẨN': 'dc',
+            'PAGE': 'page', 'TRANG': 'page'
+        }
+
+        # 6. TỰ ĐỘNG DÒ BẢN ĐỒ CỘT DỰA TRÊN DÒNG TIÊU ĐỀ
+        col_to_field_map = {}
+        header_row = 0
+
+        # Ưu tiên 1: Lấy dòng tiêu đề ngay phía trên `dong_bat_dau_ghi` (nếu có khai báo trong DB)
+        if mau_obj.dong_bat_dau_ghi and mau_obj.dong_bat_dau_ghi > 1:
+            target_row = mau_obj.dong_bat_dau_ghi - 1
+            for col_idx in range(1, ws.max_column + 1):
+                hdr = _clean_header_str(ws.cell(row=target_row, column=col_idx).value)
+                if hdr in MASTER_MAP:
+                    col_to_field_map[col_idx] = MASTER_MAP[hdr]
+            if col_to_field_map:
+                header_row = target_row
+
+        # Ưu tiên 2: Quét từ dòng 1 đến 10 để tự nhận diện dòng tiêu đề chuẩn nhất
+        if not col_to_field_map:
+            best_match_count = 0
+            for r in range(1, 11):
+                temp_map = {}
+                matches = 0
+                for c in range(1, ws.max_column + 1):
+                    hdr = _clean_header_str(ws.cell(row=r, column=c).value)
+                    if hdr in MASTER_MAP:
+                        temp_map[c] = MASTER_MAP[hdr]
+                        matches += 1
+                if matches > best_match_count:
+                    best_match_count = matches
+                    header_row = r
+                    col_to_field_map = temp_map
+
+        # Phương án dự phòng (Fallback): Nếu không khớp tiêu đề nào, quay về thứ tự mặc định
+        if not col_to_field_map:
+            default_fields = ['stt', 'IDSV', 'so_cv', 'ho_ten', 'ngay_sinh', 'cccd', 'ctdt', 'phuong_thuc_xet', 'pt2_qd', 'ma_sv']
+            col_to_field_map = {idx + 1: field for idx, field in enumerate(default_fields)}
+            start_row = mau_obj.dong_bat_dau_ghi if mau_obj.dong_bat_dau_ghi else 10
+        else:
+            start_row = (header_row + 1) if header_row > 0 else (mau_obj.dong_bat_dau_ghi if mau_obj.dong_bat_dau_ghi else 10)
+
+        # 7. Ghi dữ liệu từng thí sinh vào các cột đã tự động nhận diện
+        current_row = start_row
+        for idx, ts in enumerate(danh_sach, start=1):
+            extra_info = extra_data_map.get(ts.cccd)
+
+            for col_num, field_name in col_to_field_map.items():
+                cell = ws.cell(row=current_row, column=col_num)
+
+                # Xử lý các nguồn lấy dữ liệu
+                if field_name == 'stt':
+                    val = idx
+                elif field_name == 'noi_sinh':
+                    val = getattr(extra_info, 'ma_noi_sinh', '') if extra_info else getattr(ts, 'noi_sinh', '')
+                elif field_name == 'gioi_tinh':
+                    val = getattr(extra_info, 'gioi_tinh', '') if extra_info else getattr(ts, 'gioi_tinh', '')
+                else:
+                    val = getattr(ts, field_name, '') or ''
+
+                cell.value = str(val) if val is not None else ''
+                cell.font = font_data
+                cell.border = thin_border
+                
+                # Căn lề chuẩn cho các cột
+                if field_name in ['stt', 'IDSV', 'so_cv', 'ngay_sinh', 'noi_sinh', 'gioi_tinh', 'cccd', 'phuong_thuc_xet', 'pt2_qd', 'ma_sv', 'dtut', 'kvut', 'barcode']:
+                    cell.alignment = align_center
+                else:
+                    cell.alignment = align_left
+
+            current_row += 1
+
+        # 8. Thiết lập cấu hình trang in chuẩn khổ giấy A4 Ngang
+        ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.fitToWidth = 1   # Vừa khít 1 trang chiều ngang
+        ws.page_setup.fitToHeight = 0  # Chiều dài tự động ngắt trang
+
+        # 9. Trả về response tải file
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"Danh_Sach_Trung_Tuyen_{nam}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        wb.save(response)
+        return response
+
+    except Exception as e:
+        messages.error(request, f"Lỗi đọc/ghi file Excel mẫu: {str(e)}")
+        return redirect('danh_sach_trung_tuyen')
+
+@custom_login_required
+@check_permission('danh_sach_trung_tuyen')
+def upload_mau_excel(request):
+    # Đính kèm ?tab=quan_ly_mau vào URL redirect
+    redirect_url = reverse('danh_sach_trung_tuyen') + '?tab=quan_ly_mau'
+
+    if request.method == 'POST':
+        nam_tuyen_sinh = request.POST.get('nam_tuyen_sinh')
+        loai_mau = request.POST.get('loai_mau', 'ds_trung_tuyen')
+        file_mau = request.FILES.get('file_mau')
+
+        if not file_mau:
+            messages.error(request, "Vui lòng chọn file Excel mẫu!")
+            return redirect(redirect_url)
+
+        if not nam_tuyen_sinh:
+            messages.error(request, "Vui lòng chọn năm tuyển sinh!")
+            return redirect(redirect_url)
+
+        try:
+            dong_bat_dau_ghi = int(request.POST.get('dong_bat_dau_ghi') or 10)
+        except (ValueError, TypeError):
+            dong_bat_dau_ghi = 10
+
+        try:
+            mau_obj = MauXuatExcel.objects.filter(
+                nam_tuyen_sinh=nam_tuyen_sinh, 
+                loai_mau=loai_mau
+            ).first()
+
+            if mau_obj:
+                if mau_obj.file_mau:
+                    mau_obj.file_mau.delete(save=False)
+                mau_obj.file_mau = file_mau
+                mau_obj.dong_bat_dau_ghi = dong_bat_dau_ghi
+                mau_obj.save()
+                messages.success(request, f"Đã cập nhật file mẫu Excel cho năm {nam_tuyen_sinh}!")
+            else:
+                MauXuatExcel.objects.create(
+                    nam_tuyen_sinh=nam_tuyen_sinh,
+                    loai_mau=loai_mau,
+                    file_mau=file_mau,
+                    dong_bat_dau_ghi=dong_bat_dau_ghi
+                )
+                messages.success(request, f"Đã thêm mới mẫu Excel cho năm {nam_tuyen_sinh} thành công!")
+
+        except Exception as e:
+            messages.error(request, f"Lỗi khi lưu file: {str(e)}")
+
+    return redirect(redirect_url)
+    
 # =========================================================
 # 2. XỬ LÝ DANH SÁCH & IMPORT TRÚNG TUYỂN
 # =========================================================

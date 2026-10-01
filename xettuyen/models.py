@@ -354,10 +354,10 @@ class MauImportGiayBao(models.Model):
 
     def __str__(self):
         return f"{self.ho_ten} - {self.cccd}"
-        
+
 class ToHopMon(models.Model): # Thay tên class theo đúng file models.py của bạn
     stt = models.IntegerField(default=0, null=True, blank=True)
-    ma_to_hop_mon = models.CharField(max_length=10)
+    ma_to_hop_mon = models.CharField(max_length=50, unique=True)
     ten_to_hop_mon = models.CharField(max_length=255)
     ma_mon_thi = models.CharField(max_length=255)
 
@@ -453,3 +453,21 @@ class CauHinhGiayBao(models.Model):
             return "Đã hết thời hạn tra cứu / Đã khóa"
 
         return "Đã sẵn sàng tải bản chính thức"
+
+class MauXuatExcel(models.Model):
+    LOAI_MAU_CHOICES = [
+        ('ds_trung_tuyen', 'Danh sách trúng tuyển'),
+        ('ho_so_nhap_hoc', 'Hồ sơ nhập học'),
+    ]
+    
+    nam_tuyen_sinh = models.IntegerField(verbose_name="Năm tuyển sinh")
+    loai_mau = models.CharField(max_length=50, choices=LOAI_MAU_CHOICES, verbose_name="Loại mẫu")
+    file_mau = models.FileField(upload_to='excel_templates/', verbose_name="File Excel mẫu (.xlsx)")
+    dong_bat_dau_ghi = models.IntegerField(default=10, verbose_name="Dòng bắt đầu ghi dữ liệu")
+
+    class Meta:
+        unique_together = ('nam_tuyen_sinh', 'loai_mau')
+        verbose_name = "Mẫu xuất Excel"
+
+    def __str__(self):
+        return f"Mẫu {self.get_loai_mau_display()} - Năm {self.nam_tuyen_sinh}"

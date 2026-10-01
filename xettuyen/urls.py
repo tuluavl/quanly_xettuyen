@@ -64,6 +64,9 @@ urlpatterns = [
     path('export-sms/', views.export_sms, name='export_sms'),
     path('trung-tuyen/sua/<int:pk>/', views.sua_trung_tuyen, name='sua_trung_tuyen'),
     path('trung-tuyen/xoa/<int:pk>/', views.xoa_trung_tuyen, name='xoa_trung_tuyen'),
+    path('export-trung-tuyen-excel/', views.export_danh_sach_trung_tuyen_excel, name='export_danh_sach_trung_tuyen_excel'),
+    path('upload-mau-excel/', views.upload_mau_excel, name='upload_mau_excel'),
+    path('xoa-mau-excel/<int:id>/', views.xoa_mau_excel, name='xoa_mau_excel'),
     
     # Các đường dẫn cập nhật bổ sung thông tin nhập học
     path('dong-bo-thong-tin-trung-tuyen/', views.dong_bo_thong_tin_trung_tuyen, name='dong_bo_thong_tin_trung_tuyen'),
@@ -90,6 +93,8 @@ urlpatterns = [
     # Route in giấy báo bảo mật không tham số URL
     path('tra-cuu/xem-giay-bao-pdf/', views.in_giay_bao_bao_mat, name='in_giay_bao_bao_mat'),
     path('tra-cuu/xem-giay-bao-pdf/',views.in_giay_bao_sinh_vien, name='xem_giay_bao_sinh_vien',),
+    
+   
 
 
 ]
