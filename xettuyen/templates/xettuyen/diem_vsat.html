@@ -36,6 +36,16 @@
                     <i class="fas fa-file-excel me-1"></i> Xuất danh sách ra Excel
                 </a>
             {% endif %}
+
+            <!-- NÚT XÓA TOÀN BỘ DỮ LIỆU V-SAT -->
+            {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_diem_vsat' in request.session.permissions %}
+                <form id="form-xoa-toan-bo" method="POST" action="{% url 'xoa_tat_ca_diem_vsat' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="button" id="btn-xoa-toan-bo" class="btn btn-danger btn-sm fw-bold px-3 py-1">
+                        <i class="fas fa-trash-alt me-1"></i> Xóa toàn bộ
+                    </button>
+                </form>
+            {% endif %}
         </div>
     </div>
 
@@ -113,73 +123,154 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Dữ liệu sẽ do DataTables Server-side render tự động -->
+                <!-- Dữ liệu do DataTables Server-side render tự động -->
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- MODAL SỬA ĐIỂM THÍ SINH V-SAT DÙNG CHUNG -->
-<div class="modal fade" id="modalEditVsat" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+<!-- MODAL CHỈNH SỬA TOÀN BỘ THÔNG TIN THÍ SINH V-SAT -->
+<div class="modal fade" id="modalEditVsat" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-3 overflow-hidden">
             <form id="formEditVsat" method="POST" action="">
                 {% csrf_token %}
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Chỉnh Sửa Điểm Thí Sinh V-SAT</h5>
+                
+                <!-- HEADER VÀNG CHUẨN GIAO DIỆN -->
+                <div class="modal-header py-2 px-3" style="background-color: #ffc107; color: #000;">
+                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center" style="font-size: 16px;">
+                        <i class="fas fa-user-edit me-2 fs-5"></i>Chỉnh Sửa Thông Tin Thí Sinh
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-start" style="font-size: 14px;">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-1">Số CCCD (*):</label>
+                
+                <div class="modal-body p-3 text-start" style="font-size: 13.5px; max-height: 75vh; overflow-y: auto;">
+                    
+                    <!-- 1. THÔNG TIN CÁ NHÂN & ĐỊNH DANH -->
+                    <div class="fw-bold text-primary mb-2 d-flex align-items-center" style="font-size: 14px;">
+                        <i class="far fa-id-card me-2 fs-6"></i>1. Thông tin cá nhân & Định danh
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">CCCD <span class="text-danger">*</span></label>
                             <input type="text" name="so_cccd" class="form-control form-control-sm" required>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-1">Họ và tên (*):</label>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">Họ tên <span class="text-danger">*</span></label>
                             <input type="text" name="ho_ten" class="form-control form-control-sm" required>
                         </div>
-                        <div class="col-md-3">
+                    </div>
+
+                    <hr class="my-2 text-muted opacity-25">
+
+                    <!-- 3. KẾT QUẢ HỌC TẬP & ĐIỂM SỐ V-SAT -->
+                    <div class="fw-bold text-primary mb-2 d-flex align-items-center" style="font-size: 14px;">
+                        <i class="fas fa-graduation-cap me-2 fs-6"></i>3. Kết quả học tập & Điểm số V-SAT các môn
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Toán:</label>
                             <input type="number" step="0.01" name="to_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Văn:</label>
                             <input type="number" step="0.01" name="va_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Lý:</label>
                             <input type="number" step="0.01" name="li_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Hóa:</label>
                             <input type="number" step="0.01" name="ho_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Sinh:</label>
                             <input type="number" step="0.01" name="si_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Sử:</label>
                             <input type="number" step="0.01" name="su_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Địa:</label>
                             <input type="number" step="0.01" name="di_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 col-6">
                             <label class="form-label mb-1">Anh:</label>
                             <input type="number" step="0.01" name="n1_vs" class="form-control form-control-sm">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold mb-1">Điểm V-SAT MAX:</label>
-                            <input type="number" step="0.01" name="diem_thi_vsat_max" class="form-control form-control-sm">
+                    </div>
+
+                    <hr class="my-2 text-muted opacity-25">
+
+                    <!-- 4. TỔ HỢP ĐIỂM VÀ ĐIỂM QUY ĐỔI -->
+                    <div class="fw-bold text-primary mb-2 d-flex align-items-center" style="font-size: 14px;">
+                        <i class="fas fa-calculator me-2 fs-6"></i>4. Điểm Tổ hợp, Quy đổi & MAX
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">A00 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_a00_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi A00:</label>
+                            <input type="number" step="0.01" name="quy_doi_a00" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">A01 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_a01_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi A01:</label>
+                            <input type="number" step="0.01" name="quy_doi_a01" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">D01 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_d01_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi D01:</label>
+                            <input type="number" step="0.01" name="quy_doi_d01" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">D07 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_d07_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi D07:</label>
+                            <input type="number" step="0.01" name="quy_doi_d07" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">D09 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_d09_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi D09:</label>
+                            <input type="number" step="0.01" name="quy_doi_d09" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">D14 V-SAT:</label>
+                            <input type="number" step="0.01" name="thmon_d14_vsat" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <label class="form-label mb-1">Quy đổi D14:</label>
+                            <input type="number" step="0.01" name="quy_doi_d14" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6 col-12">
+                            <label class="form-label fw-bold mb-1 text-danger">Điểm V-SAT MAX (Tự động):</label>
+                            <input type="number" step="0.01" name="diem_thi_vsat_max" class="form-control form-control-sm border-danger fw-bold" readonly placeholder="Hệ thống tự tính">
                         </div>
                     </div>
+
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i> Lưu thay đổi</button>
+
+                <!-- FOOTER -->
+                <div class="modal-footer border-top-0 pt-2 pb-3 px-3 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm px-3 fw-bold" style="background-color: #ffc107; color: #000; border: none;">
+                        <i class="fas fa-lock me-1"></i> Lưu thay đổi
+                    </button>
                 </div>
             </form>
         </div>
@@ -212,31 +303,49 @@
     </div>
 </div>
 
+<!-- SWEETALERT2 CDN ĐÚNG CÚ PHÁP -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-    // Hàm mở Modal và đổ dữ liệu động khi bấm nút Sửa
-    function openEditModal(id, so_cccd, ho_ten, to_vs, va_vs, li_vs, ho_vs, si_vs, su_vs, di_vs, n1_vs, diem_thi_vsat_max) {
+    // 1. Hàm mở Modal và đổ dữ liệu động từ Server qua AJAX khi bấm nút Sửa
+    function openEditModal(id) {
         var $form = $('#formEditVsat');
-        
         $form.attr('action', '/diem-vsat/sua/' + id + '/');
         
-        // Đổ dữ liệu vào từng ô input
-        $form.find('input[name="so_cccd"]').val(so_cccd || '');
-        $form.find('input[name="ho_ten"]').val(ho_ten || '');
-        $form.find('input[name="to_vs"]').val(to_vs || '');
-        $form.find('input[name="va_vs"]').val(va_vs || '');
-        $form.find('input[name="li_vs"]').val(li_vs || '');
-        $form.find('input[name="ho_vs"]').val(ho_vs || '');
-        $form.find('input[name="si_vs"]').val(si_vs || '');
-        $form.find('input[name="su_vs"]').val(su_vs || '');
-        $form.find('input[name="di_vs"]').val(di_vs || '');
-        $form.find('input[name="n1_vs"]').val(n1_vs || '');
-        $form.find('input[name="diem_thi_vsat_max"]').val(diem_thi_vsat_max || '');
-        
-        var modal = new bootstrap.Modal(document.getElementById('modalEditVsat'));
-        modal.show();
+        // Gọi AJAX GET lấy toàn bộ thông tin chi tiết thí sinh
+        $.ajax({
+            url: '/diem-vsat/sua/' + id + '/',
+            type: 'GET',
+            success: function(data) {
+                // Tự động gán tất cả dữ liệu từ JSON vào input/select tương ứng theo attribute name
+                $.each(data, function(key, val) {
+                    var $input = $form.find('[name="' + key + '"]');
+                    if ($input.length) {
+                        $input.val(val !== null && val !== undefined ? val : '');
+                    }
+                });
+                
+                // Hiển thị Modal
+                var modalEl = document.getElementById('modalEditVsat');
+                var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            },
+            error: function() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi',
+                        text: 'Không thể tải thông tin chi tiết của thí sinh!'
+                    });
+                } else {
+                    alert('Không thể tải thông tin chi tiết của thí sinh!');
+                }
+            }
+        });
     }
 
     window.addEventListener('load', function() {
+        // 2. Khởi tạo DataTables Server-Side
         if (typeof jQuery !== 'undefined' && $.fn.DataTable) {
             $.fn.dataTable.ext.errMode = 'none';
 
@@ -251,7 +360,7 @@
                 "scrollX": true,
                 "ajax": {
                     "url": "{% url 'danh_sach_diem_vsat' %}",
-                    "type": "POST", // Sử dụng POST để tránh lỗi Request Line too large
+                    "type": "POST",
                     "headers": {
                         'X-CSRFToken': '{{ csrf_token }}',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -291,10 +400,8 @@
                             var actions = '';
                             
                             {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'sua_diem_vsat' in request.session.permissions %}
-                            var safeHoTen = (row.ho_ten || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            
                             actions += '<button type="button" class="btn btn-warning btn-xs px-2 py-0 me-1" title="Sửa" ' +
-                                'onclick="openEditModal(' + row.id + ', \'' + (row.so_cccd || '') + '\', \'' + safeHoTen + '\', \'' + (row.to_vs || '') + '\', \'' + (row.va_vs || '') + '\', \'' + (row.li_vs || '') + '\', \'' + (row.ho_vs || '') + '\', \'' + (row.si_vs || '') + '\', \'' + (row.su_vs || '') + '\', \'' + (row.di_vs || '') + '\', \'' + (row.n1_vs || '') + '\', \'' + (row.diem_thi_vsat_max || '') + '\')">' +
+                                'onclick="openEditModal(' + row.id + ')">' +
                                 '<i class="fas fa-edit"></i></button>';
                             {% endif %}
                             
@@ -322,6 +429,76 @@
                         "next": "Tiếp"
                     }
                 }
+            });
+        }
+
+        // 3. Xử lý submit Form chỉnh sửa điểm/thông tin qua AJAX
+        $('#formEditVsat').on('submit', function(e) {
+            e.preventDefault();
+            var $form = $(this);
+            var actionUrl = $form.attr('action');
+
+            $.ajax({
+                url: actionUrl,
+                type: 'POST',
+                data: $form.serialize(),
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var modalEl = document.getElementById('modalEditVsat');
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Thành công!',
+                            text: response.message || 'Cập nhật dữ liệu thành công!',
+                            timer: 1800,
+                            showConfirmButton: false
+                        });
+
+                        // Tải lại DataTables mà không làm mất trang hiện tại
+                        if ($.fn.DataTable.isDataTable('#vsatTable')) {
+                            $('#vsatTable').DataTable().ajax.reload(null, false);
+                        }
+                    } else {
+                        Swal.fire('Thất bại', response.message || 'Không thể lưu thay đổi!', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var errorMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Đã xảy ra lỗi hệ thống!';
+                    Swal.fire('Lỗi', errorMsg, 'error');
+                }
+            });
+        });
+
+        // 4. Xử lý Hộp thoại SweetAlert2 cho nút "Xóa toàn bộ"
+        let btnXoaToanBo = document.getElementById('btn-xoa-toan-bo');
+        if (btnXoaToanBo) {
+            btnXoaToanBo.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Xác nhận xóa toàn bộ?',
+                    html: '<b class="text-danger">CẢNH BÁO:</b> Bạn có chắc chắn muốn <b>XÓA TOÀN BỘ</b> dữ liệu điểm V-SAT không?<br><span class="text-muted small">Hành động này sẽ không thể hoàn tác!</span>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Đồng ý xóa toàn bộ',
+                    cancelButtonText: 'Hủy bỏ',
+                    customClass: {
+                        popup: 'rounded-4 shadow',
+                        confirmButton: 'btn btn-danger px-3 py-2 me-2',
+                        cancelButton: 'btn btn-secondary px-3 py-2'
+                    },
+                    buttonsStyling: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        document.getElementById('form-xoa-toan-bo').submit();
+                    }
+                });
             });
         }
     });
