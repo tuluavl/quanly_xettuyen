@@ -54,6 +54,7 @@ urlpatterns = [
     path('diem-vsat/sua/<int:pk>/', views.sua_diem_vsat, name='sua_diem_vsat'),
     path('diem-vsat/xoa/<int:pk>/', views.xoa_diem_vsat, name='xoa_diem_vsat'),
     path('diem-vsat/export/', views.xuat_excel_diem_vsat, name='xuat_excel_diem_vsat'),
+    path('diem-vsat/xoa-tat-ca/', views.xoa_tat_ca_diem_vsat, name='xoa_tat_ca_diem_vsat'),
     
     # Các đường dẫn Danh sach trung tuyen
     path('danh-sach-trung-tuyen/', views.danh_sach_trung_tuyen, name='danh_sach_trung_tuyen'),

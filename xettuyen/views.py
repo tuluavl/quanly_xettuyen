@@ -967,11 +967,6 @@ def normalize_cccd(val):
     return s.zfill(12) if len(s) > 0 and len(s) < 12 else s
 
 #QUẢN LÝ ĐIỂM VSAT
-from django.db.models import Q, Count
-from django.http import JsonResponse
-from django.shortcuts import render
-from .models import DiemThiVsat  # Đảm bảo tên Model khớp với dự án của bạn
-
 @custom_login_required
 @check_permission('danh_sach_diem_vsat')
 def danh_sach_diem_vsat(request):
@@ -1063,18 +1058,21 @@ def danh_sach_diem_vsat(request):
         'total_count': total_count,
     })
     
-#SỬA ĐIỂM VSAT
+# SỬA ĐIỂM VSAT
 @custom_login_required
 @check_permission('sua_diem_vsat')
 def sua_diem_vsat(request, pk):
-    """View xử lý lấy thông tin điểm và lưu chỉnh sửa."""
+    """View xử lý lấy đầy đủ thông tin thí sinh/điểm và lưu chỉnh sửa."""
     item = get_object_or_404(DiemThiVsat, pk=pk)
     
     if request.method == 'GET':
         return JsonResponse({
             'id': item.id,
-            'so_cccd': item.so_cccd,
-            'ho_ten': item.ho_ten,
+            # 1. Thông tin cá nhân & Định danh
+            'so_cccd': item.so_cccd or '',
+            'ho_ten': item.ho_ten or '',
+            
+            # 3. Điểm các môn V-SAT
             'to_vs': item.to_vs,
             'va_vs': item.va_vs,
             'li_vs': item.li_vs,
@@ -1083,26 +1081,81 @@ def sua_diem_vsat(request, pk):
             'su_vs': item.su_vs,
             'di_vs': item.di_vs,
             'n1_vs': item.n1_vs,
+            
+            # Điểm tổ hợp & Quy đổi & MAX
+            'thmon_a00_vsat': getattr(item, 'thmon_a00_vsat', None),
+            'quy_doi_a00': getattr(item, 'quy_doi_a00', None),
+            'thmon_a01_vsat': getattr(item, 'thmon_a01_vsat', None),
+            'quy_doi_a01': getattr(item, 'quy_doi_a01', None),
+            'thmon_d01_vsat': getattr(item, 'thmon_d01_vsat', None),
+            'quy_doi_d01': getattr(item, 'quy_doi_d01', None),
+            'thmon_d07_vsat': getattr(item, 'thmon_d07_vsat', None),
+            'quy_doi_d07': getattr(item, 'quy_doi_d07', None),
+            'thmon_d09_vsat': getattr(item, 'thmon_d09_vsat', None),
+            'quy_doi_d09': getattr(item, 'quy_doi_d09', None),
+            'thmon_d14_vsat': getattr(item, 'thmon_d14_vsat', None),
+            'quy_doi_d14': getattr(item, 'quy_doi_d14', None),
             'diem_thi_vsat_max': item.diem_thi_vsat_max,
         })
         
     elif request.method == 'POST':
         try:
-            item.so_cccd = request.POST.get('so_cccd', '').strip()
-            item.ho_ten = request.POST.get('ho_ten', '').strip()
-            item.to_vs = request.POST.get('to_vs') or None
-            item.va_vs = request.POST.get('va_vs') or None
-            item.li_vs = request.POST.get('li_vs') or None
-            item.ho_vs = request.POST.get('ho_vs') or None
-            item.si_vs = request.POST.get('si_vs') or None
-            item.su_vs = request.POST.get('su_vs') or None
-            item.di_vs = request.POST.get('di_vs') or None
-            item.n1_vs = request.POST.get('n1_vs') or None
-            item.diem_thi_vsat_max = request.POST.get('diem_thi_vsat_max') or None
+            def parse_str(field):
+                val = request.POST.get(field, '').strip()
+                return val if val != '' else None
+
+            def parse_score(field):
+                val = request.POST.get(field)
+                if val is None or str(val).strip() == '':
+                    return None
+                return float(str(val).replace(',', '.').strip())
+
+            # 1. Thông tin cá nhân & Định danh
+            item.so_cccd = parse_str('so_cccd') or ''
+            item.ho_ten = parse_str('ho_ten') or ''
+
+            # 3. Điểm các môn V-SAT
+            item.to_vs = parse_score('to_vs')
+            item.va_vs = parse_score('va_vs')
+            item.li_vs = parse_score('li_vs')
+            item.ho_vs = parse_score('ho_vs')
+            item.si_vs = parse_score('si_vs')
+            item.su_vs = parse_score('su_vs')
+            item.di_vs = parse_score('di_vs')
+            item.n1_vs = parse_score('n1_vs')
+
+            # Điểm các tổ hợp & Quy đổi
+            if hasattr(item, 'thmon_a00_vsat'): item.thmon_a00_vsat = parse_score('thmon_a00_vsat')
+            if hasattr(item, 'quy_doi_a00'): item.quy_doi_a00 = parse_score('quy_doi_a00')
+            if hasattr(item, 'thmon_a01_vsat'): item.thmon_a01_vsat = parse_score('thmon_a01_vsat')
+            if hasattr(item, 'quy_doi_a01'): item.quy_doi_a01 = parse_score('quy_doi_a01')
+            if hasattr(item, 'thmon_d01_vsat'): item.thmon_d01_vsat = parse_score('thmon_d01_vsat')
+            if hasattr(item, 'quy_doi_d01'): item.quy_doi_d01 = parse_score('quy_doi_d01')
+            if hasattr(item, 'thmon_d07_vsat'): item.thmon_d07_vsat = parse_score('thmon_d07_vsat')
+            if hasattr(item, 'quy_doi_d07'): item.quy_doi_d07 = parse_score('quy_doi_d07')
+            if hasattr(item, 'thmon_d09_vsat'): item.thmon_d09_vsat = parse_score('thmon_d09_vsat')
+            if hasattr(item, 'quy_doi_d09'): item.quy_doi_d09 = parse_score('quy_doi_d09')
+            if hasattr(item, 'thmon_d14_vsat'): item.thmon_d14_vsat = parse_score('thmon_d14_vsat')
+            if hasattr(item, 'quy_doi_d14'): item.quy_doi_d14 = parse_score('quy_doi_d14')
+            
+            # Tự động tính điểm V-SAT MAX = max(quy_doi_a00, quy_doi_a01, quy_doi_d01, quy_doi_d07, quy_doi_d09, quy_doi_d14)
+            quy_doi_scores = [
+                getattr(item, 'quy_doi_a00', None),
+                getattr(item, 'quy_doi_a01', None),
+                getattr(item, 'quy_doi_d01', None),
+                getattr(item, 'quy_doi_d07', None),
+                getattr(item, 'quy_doi_d09', None),
+                getattr(item, 'quy_doi_d14', None),
+            ]
+            valid_scores = [s for s in quy_doi_scores if s is not None]
+            item.diem_thi_vsat_max = max(valid_scores) if valid_scores else None
+
             item.save()
-            return JsonResponse({'success': True, 'message': 'Cập nhật điểm thành công!'})
+            return JsonResponse({'success': True, 'message': 'Cập nhật thông tin thí sinh thành công!'})
+        except ValueError:
+            return JsonResponse({'success': False, 'message': 'Định dạng điểm số không hợp lệ!'}, status=400)
         except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Lỗi: {str(e)}'}, status=400)
+            return JsonResponse({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}, status=400)
 
 #XÓA ĐIỂM VSAT
 @custom_login_required
@@ -1115,46 +1168,104 @@ def xoa_diem_vsat(request, pk):
         return JsonResponse({'success': True, 'message': 'Xóa dữ liệu thành công!'})
     return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ!'}, status=400)
  
+#XÓA TẤT CẢ ĐIỂM VSAT
+@custom_login_required
+@check_permission('xoa_diem_vsat')
+def xoa_tat_ca_diem_vsat(request):
+    # Kiểm tra quyền tương tự như khai báo ngoài template
+    role_code = request.session.get('role_code')
+    username = request.session.get('username')
+    permissions = request.session.get('permissions', [])
 
-#IMPORT ĐIỂM VSAT
- 
+    if role_code == 'admin' or username == 'admin' or 'xoa_diem_vsat' in permissions:
+        try:
+            # Xóa toàn bộ dữ liệu trong bảng điểm V-SAT
+            count, _ = DiemThiVsat.objects.all().delete()
+            messages.success(request, f"Đã xóa thành công toàn bộ {count} dữ liệu điểm V-SAT!")
+        except Exception as e:
+            messages.error(request, f"Có lỗi xảy ra khi xóa dữ liệu: {str(e)}")
+    else:
+        messages.error(request, "Bạn không có quyền thực hiện thao tác này!")
+
+    return redirect('danh_sach_diem_vsat')
+    
 @custom_login_required
 @check_permission('import_diem_vsat')
 def import_diem_vsat(request):
-    """Hàm xử lý riêng cho Import Excel điểm V-SAT (Tương thích mọi CSDL)"""
+    """Hàm xử lý Import Excel điểm V-SAT đầy đủ các cột môn, max score và tổ hợp quy đổi"""
     if request.method == 'POST' and request.FILES.get('excel_file'):
         file_excel = request.FILES['excel_file']
         try:
             df = pd.read_excel(file_excel, sheet_name=0)
 
-            # Chuẩn hóa tên cột để tra cứu không phân biệt hoa thường/khoảng trắng
-            df.columns = [str(c).strip().lower() for c in df.columns]
+            # Map tên cột gốc để tra cứu không phân biệt hoa/thường/khoảng trắng
+            cols_map = {str(c).strip().lower(): c for c in df.columns}
 
             def parse_float(val):
                 try:
-                    if pd.isna(val) or str(val).strip().lower() in ['', 'nan', 'none']:
+                    if pd.isna(val) or str(val).strip().lower() in ['', 'nan', 'none', 'null']:
                         return None
                     return float(val)
-                except:
+                except Exception:
                     return None
 
-            # Xác định tên cột CCCD và Họ Tên
-            col_cccd = next((c for c in df.columns if 'cccd' in c or 'so_cccd' in c), None)
-            col_hoten = next((c for c in df.columns if 'ho_ten' in c or 'họ tên' in c or 'hoten' in c), None)
-
-            if not col_cccd or not col_hoten:
-                start_idx = 1 if 'id' in df.columns[0] else 0
-                col_cccd = df.columns[start_idx]
-                col_hoten = df.columns[start_idx + 1]
-
-            def get_val(row, col_name, fallback_idx):
-                if col_name in df.columns:
-                    return parse_float(row[col_name])
-                elif len(row) > fallback_idx:
-                    return parse_float(row.iloc[fallback_idx])
+            def get_col_name(aliases, fallback_idx=None):
+                """Tìm tên cột thực tế dựa trên danh sách alias hoặc fallback index"""
+                for alias in aliases:
+                    alias_clean = alias.strip().lower()
+                    if alias_clean in cols_map:
+                        return cols_map[alias_clean]
+                if fallback_idx is not None and fallback_idx < len(df.columns):
+                    return df.columns[fallback_idx]
                 return None
 
-            # 1. Khử trùng lặp theo CCCD ngay từ file Excel
+            # 1. Xác định cột Số CCCD và Họ Tên
+            has_id = len(df.columns) > 0 and 'id' in str(df.columns[0]).lower()
+            col_cccd = get_col_name(['so_cccd', 'cccd', 'mã định danh', 'số cccd', 'cmnd'], fallback_idx=1 if has_id else 0)
+            col_hoten = get_col_name(['ho_ten', 'họ tên', 'họ và tên', 'hoten', 'tên thí sinh'], fallback_idx=2 if has_id else 1)
+
+            if not col_cccd or not col_hoten:
+                messages.error(request, "Không tìm thấy cột Số CCCD hoặc Họ tên trong file Excel!")
+                return redirect('danh_sach_diem_vsat')
+
+            # 2. Danh sách tất cả các trường điểm và tiêu đề tương ứng (Alias + Fallback Index)
+            field_definitions = {
+                'di_vs': (['di_vs', 'địa', 'địa lý', 'dia'], 3),
+                'ho_vs': (['ho_vs', 'hóa', 'hóa học', 'hoa'], 4),
+                'li_vs': (['li_vs', 'lý', 'vật lý', 'ly'], 5),
+                'n1_vs': (['n1_vs', 'anh', 'tiếng anh', 'ngoại ngữ', 'n1'], 6),
+                'si_vs': (['si_vs', 'sinh', 'sinh học'], 7),
+                'su_vs': (['su_vs', 'sử', 'lịch sử', 'su'], 8),
+                'to_vs': (['to_vs', 'toán', 'toan'], 9),
+                'va_vs': (['va_vs', 'văn', 'ngữ văn', 'van'], 10),
+                'max_score': (['max_score', 'max môn', 'điểm max môn', 'max_mon'], 11),
+                'thmon_a00_vsat': (['thmon_a00_vsat', 'a00', 'tổ hợp a00', 'a00_vsat'], 12),
+                'quy_doi_a00': (['quy_doi_a00', 'quy đổi a00', 'qd_a00'], 13),
+                'thmon_a01_vsat': (['thmon_a01_vsat', 'a01', 'tổ hợp a01', 'a01_vsat'], 14),
+                'quy_doi_a01': (['quy_doi_a01', 'quy đổi a01', 'qd_a01'], 15),
+                'thmon_d01_vsat': (['thmon_d01_vsat', 'd01', 'tổ hợp d01', 'd01_vsat'], 16),
+                'quy_doi_d01': (['quy_doi_d01', 'quy đổi d01', 'qd_d01'], 17),
+                'thmon_d07_vsat': (['thmon_d07_vsat', 'd07', 'tổ hợp d07', 'd07_vsat'], 18),
+                'quy_doi_d07': (['quy_doi_d07', 'quy đổi d07', 'qd_d07'], 19),
+                'thmon_d09_vsat': (['thmon_d09_vsat', 'd09', 'tổ hợp d09', 'd09_vsat'], 20),
+                'quy_doi_d09': (['quy_doi_d09', 'quy đổi d09', 'qd_d09'], 21),
+                'thmon_d14_vsat': (['thmon_d14_vsat', 'd14', 'tổ hợp d14', 'd14_vsat'], 22),
+                'quy_doi_d14': (['quy_doi_d14', 'quy đổi d14', 'qd_d14'], 23),
+                'diem_thi_vsat_max': (['diem_thi_vsat_max', 'vsat max', 'điểm vsat max', 'vsat_max'], 24),
+            }
+
+            # Xác định tên cột thực tế trong file Excel
+            actual_col_map = {}
+            for field, (aliases, fallback_idx) in field_definitions.items():
+                actual_col_map[field] = get_col_name(aliases, fallback_idx=fallback_idx if has_id else fallback_idx - 1)
+
+            def get_row_val(row, field):
+                col_name = actual_col_map.get(field)
+                if col_name and col_name in row:
+                    return parse_float(row[col_name])
+                return None
+
+            # 3. Đọc dữ liệu và khử trùng lặp theo CCCD
             excel_data = {}
             for _, row in df.iterrows():
                 raw_cccd = str(row[col_cccd]).strip().split('.')[0]
@@ -1164,20 +1275,25 @@ def import_diem_vsat(request):
                 cccd = raw_cccd.zfill(12) if len(raw_cccd) < 12 and raw_cccd.isdigit() else raw_cccd
                 ho_ten = str(row[col_hoten]).strip()
 
-                excel_data[cccd] = {
-                    'ho_ten': ho_ten,
-                    'di_vs': get_val(row, 'di_vs', 3),
-                    'ho_vs': get_val(row, 'ho_vs', 4),
-                    'li_vs': get_val(row, 'li_vs', 5),
-                    'n1_vs': get_val(row, 'n1_vs', 6),
-                    'si_vs': get_val(row, 'si_vs', 7),
-                    'su_vs': get_val(row, 'su_vs', 8),
-                    'to_vs': get_val(row, 'to_vs', 9),
-                    'va_vs': get_val(row, 'va_vs', 10),
-                    'diem_thi_vsat_max': get_val(row, 'diem_thi_vsat_max', 24),
-                }
+                row_data = {'ho_ten': ho_ten}
+                for field in field_definitions.keys():
+                    row_data[field] = get_row_val(row, field)
 
-            # 2. Lấy dữ liệu điểm V-SAT hiện có trong CSDL
+                # Tự động lấy MAX từ các cột điểm quy đổi (quy_doi_a00 -> quy_doi_d14)
+                quy_doi_scores = [
+                    row_data.get('quy_doi_a00'),
+                    row_data.get('quy_doi_a01'),
+                    row_data.get('quy_doi_d01'),
+                    row_data.get('quy_doi_d07'),
+                    row_data.get('quy_doi_d09'),
+                    row_data.get('quy_doi_d14'),
+                ]
+                valid_scores = [s for s in quy_doi_scores if s is not None]
+                row_data['diem_thi_vsat_max'] = max(valid_scores) if valid_scores else None
+
+                excel_data[cccd] = row_data
+
+            # 4. Tra cứu dữ liệu hiện có trong CSDL
             existing_objs = {
                 obj.so_cccd: obj 
                 for obj in DiemThiVsat.objects.all()
@@ -1186,49 +1302,33 @@ def import_diem_vsat(request):
             to_create = []
             to_update = []
 
-            # 3. Phân loại danh sách Thêm mới và Cập nhật
+            update_fields = [
+                'ho_ten', 'di_vs', 'ho_vs', 'li_vs', 'n1_vs', 'si_vs', 'su_vs', 'to_vs', 'va_vs',
+                'max_score', 'thmon_a00_vsat', 'quy_doi_a00', 'thmon_a01_vsat', 'quy_doi_a01',
+                'thmon_d01_vsat', 'quy_doi_d01', 'thmon_d07_vsat', 'quy_doi_d07',
+                'thmon_d09_vsat', 'quy_doi_d09', 'thmon_d14_vsat', 'quy_doi_d14',
+                'diem_thi_vsat_max'
+            ]
+
+            # 5. Phân loại Thêm mới & Cập nhật
             for cccd, data in excel_data.items():
                 if cccd in existing_objs:
-                    # Đã có trong CSDL -> Cập nhật thông tin điểm
                     obj = existing_objs[cccd]
-                    obj.ho_ten = data['ho_ten']
-                    obj.di_vs = data['di_vs']
-                    obj.ho_vs = data['ho_vs']
-                    obj.li_vs = data['li_vs']
-                    obj.n1_vs = data['n1_vs']
-                    obj.si_vs = data['si_vs']
-                    obj.su_vs = data['su_vs']
-                    obj.to_vs = data['to_vs']
-                    obj.va_vs = data['va_vs']
-                    obj.diem_thi_vsat_max = data['diem_thi_vsat_max']
+                    for field in update_fields:
+                        setattr(obj, field, data[field])
                     to_update.append(obj)
                 else:
-                    # Chưa có -> Thêm mới bản ghi
-                    to_create.append(
-                        DiemThiVsat(
-                            so_cccd=cccd,
-                            ho_ten=data['ho_ten'],
-                            di_vs=data['di_vs'],
-                            ho_vs=data['ho_vs'],
-                            li_vs=data['li_vs'],
-                            n1_vs=data['n1_vs'],
-                            si_vs=data['si_vs'],
-                            su_vs=data['su_vs'],
-                            to_vs=data['to_vs'],
-                            va_vs=data['va_vs'],
-                            diem_thi_vsat_max=data['diem_thi_vsat_max'],
-                        )
-                    )
+                    create_kwargs = {'so_cccd': cccd}
+                    for field in update_fields:
+                        create_kwargs[field] = data[field]
+                    to_create.append(DiemThiVsat(**create_kwargs))
 
-            # 4. Thực thi Lưu/Cập nhật hàng loạt
+            # 6. Cập nhật vào CSDL
             if to_create:
                 DiemThiVsat.objects.bulk_create(to_create)
 
             if to_update:
-                DiemThiVsat.objects.bulk_update(
-                    to_update,
-                    fields=['ho_ten', 'di_vs', 'ho_vs', 'li_vs', 'n1_vs', 'si_vs', 'su_vs', 'to_vs', 'va_vs', 'diem_thi_vsat_max']
-                )
+                DiemThiVsat.objects.bulk_update(to_update, fields=update_fields)
 
             messages.success(
                 request, 
@@ -1327,6 +1427,9 @@ def xuat_excel_diem_vsat(request):
     response['Content-Disposition'] = 'attachment; filename="Danh_sach_diem_VSAT.xlsx"'
     wb.save(response)
     return response
+    
+
+
 
 #QUẢN LÝ ĐIỂM CHUẨN
 @custom_login_required
