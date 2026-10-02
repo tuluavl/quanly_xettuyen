@@ -307,6 +307,59 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+    // 0. Hàm hiển thị Popup SweetAlert2 xác nhận xóa điểm V-SAT từng thí sinh
+    function xoaDiemVsat(id, hoTen) {
+        Swal.fire({
+            title: 'Xóa điểm V-SAT?',
+            html: '<b class="text-danger">CẢNH BÁO:</b> Bạn có chắc chắn muốn xóa điểm V-SAT của thí sinh <b>' + (hoTen || '') + '</b> không? <br><span class="text-muted small">Hành động này sẽ không thể hoàn tác!</span>',
+            icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Đồng ý xóa',
+                    cancelButtonText: 'Hủy bỏ',
+            customClass: {
+                popup: 'rounded-4 shadow',
+                confirmButton: 'btn btn-danger px-3 py-2 me-2',
+                cancelButton: 'btn btn-secondary px-3 py-2'
+            },
+            buttonsStyling: false
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/diem-vsat/xoa/' + id + '/',
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Thành công!',
+                                text: response.message || 'Xóa dữ liệu thành công!',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+
+                            // Reload DataTables giữ nguyên trang hiện tại
+                            if ($.fn.DataTable.isDataTable('#vsatTable')) {
+                                $('#vsatTable').DataTable().ajax.reload(null, false);
+                            }
+                        } else {
+                            Swal.fire('Thất bại', response.message || 'Không thể xóa dữ liệu!', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        var errorMsg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Đã xảy ra lỗi hệ thống!';
+                        Swal.fire('Lỗi', errorMsg, 'error');
+                    }
+                });
+            }
+        });
+    }
+
     // 1. Hàm mở Modal và đổ dữ liệu động từ Server qua AJAX khi bấm nút Sửa
     function openEditModal(id) {
         var $form = $('#formEditVsat');
@@ -406,8 +459,10 @@
                             {% endif %}
                             
                             {% if request.session.role_code == 'admin' or request.session.username == 'admin' or 'xoa_diem_vsat' in request.session.permissions %}
-                            actions += '<form method="POST" action="/diem-vsat/xoa/' + row.id + '/" class="d-inline" onsubmit="return confirm(\'Bạn có chắc chắn muốn xóa điểm V-SAT của thí sinh này?\');">' +
-                                '{% csrf_token %}<button type="submit" class="btn btn-danger btn-xs px-2 py-0" title="Xóa"><i class="fas fa-trash-alt"></i></button></form>';
+                            var safeName = row.ho_ten ? row.ho_ten.replace(/'/g, "\\'") : '';
+                            actions += '<button type="button" class="btn btn-danger btn-xs px-2 py-0" title="Xóa" ' +
+                                'onclick="xoaDiemVsat(' + row.id + ', \'' + safeName + '\')">' +
+                                '<i class="fas fa-trash-alt"></i></button>';
                             {% endif %}
                             
                             return actions;
