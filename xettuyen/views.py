@@ -1157,7 +1157,7 @@ def sua_diem_vsat(request, pk):
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}, status=400)
 
-#XÓA ĐIỂM VSAT
+# XÓA ĐIỂM VSAT
 @custom_login_required
 @check_permission('xoa_diem_vsat')
 def xoa_diem_vsat(request, pk):
@@ -1166,7 +1166,7 @@ def xoa_diem_vsat(request, pk):
         item = get_object_or_404(DiemThiVsat, pk=pk)
         item.delete()
         return JsonResponse({'success': True, 'message': 'Xóa dữ liệu thành công!'})
-    return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ!'}, status=400)
+    return JsonResponse({'success': False, 'message': 'Có lỗi xảy ra khi xóa dữ liệu'}, status=400)
  
 #XÓA TẤT CẢ ĐIỂM VSAT
 @custom_login_required
