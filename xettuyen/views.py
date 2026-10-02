@@ -4462,7 +4462,7 @@ def xuat_excel_truong_thpt(request):
         messages.error(request, f"Lỗi khi xuất file Excel: {e}")
         return redirect('danh_sach_truong_thpt')
 
-
+# SỬA TRƯỜNG THPT
 @custom_login_required
 @check_permission('sua_truong_thpt')
 def sua_truong_thpt(request, id):
@@ -4490,17 +4490,24 @@ def sua_truong_thpt(request, id):
     return redirect('danh_sach_truong_thpt')
 
 
+# XÓA TRƯỜNG THPT
 @custom_login_required
 @check_permission('xoa_truong_thpt')
 def xoa_truong_thpt(request, id):
-    truong = get_object_or_404(TruongTHPT, id=id)
+    """View xử lý xóa thông tin trường THPT qua AJAX."""
     if request.method == 'POST':
+        truong = get_object_or_404(TruongTHPT, id=id)
         ten_truong = truong.ten_truong
         truong.delete()
-        messages.success(request, f"Đã xóa thành công trường: {ten_truong}")
-    return redirect('danh_sach_truong_thpt')
-    
-    
+        return JsonResponse({'success': True, 'message': f'Đã xóa thành công trường: {ten_truong}'})
+    return JsonResponse({'success': False, 'message': 'Phương thức không hợp lệ!'}, status=400)
+
+
+
+# ==========================================
+# VIEW TRA CỨU & XEM GIẤY BÁO DÀNH CHO SINH VIÊN
+# ==========================================
+
 def map_diem_vsat_theo_to_hop(vsat_obj, ma_to_hop):
     """Hàm bổ trợ: Ánh xạ điểm 3 môn dựa theo mã tổ hợp."""
     if not vsat_obj or not ma_to_hop:
